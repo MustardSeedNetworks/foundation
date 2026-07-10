@@ -175,6 +175,36 @@ func TestCSRFManager_GetOrCreate_ConcurrentSameSession(t *testing.T) {
 // TestSessionKey_HashedNotPlaintext proves the bearer never lands in
 // the manager's internal map as plaintext — important so a heap dump
 // or debug log of the manager doesn't leak live bearer tokens.
+// TestCSRFManager_Revoke confirms a revoked session's token no longer
+// validates (logout hygiene), that revoking is idempotent, and that it
+// leaves other sessions untouched.
+func TestCSRFManager_Revoke(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	defer m.Stop()
+
+	tokA, err := m.Generate(SessionKey("bearer-A"))
+	if err != nil {
+		t.Fatalf("generate A: %v", err)
+	}
+	tokB, err := m.Generate(SessionKey("bearer-B"))
+	if err != nil {
+		t.Fatalf("generate B: %v", err)
+	}
+
+	m.Revoke(SessionKey("bearer-A"))
+	if vErr := m.Validate(SessionKey("bearer-A"), tokA); !errors.Is(vErr, errCSRFTokenInvalid) {
+		t.Errorf("revoked token A validated (err=%v)", vErr)
+	}
+	if vErr := m.Validate(SessionKey("bearer-B"), tokB); vErr != nil {
+		t.Errorf("session B affected by A revoke: %v", vErr)
+	}
+
+	// Idempotent: revoking again (and an unknown session) is a no-op.
+	m.Revoke(SessionKey("bearer-A"))
+	m.Revoke(SessionKey("never-existed"))
+}
+
 func TestSessionKey_HashedNotPlaintext(t *testing.T) {
 	t.Parallel()
 	bearer := "extremely-secret-bearer-token"

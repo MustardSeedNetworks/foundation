@@ -187,6 +187,15 @@ func (m *Manager) Validate(sessionKey, token string) error {
 	return nil
 }
 
+// Revoke drops the token bound to sessionKey, typically on logout so a
+// leaked token can't outlive the session. A no-op if the session holds no
+// token. Idempotent.
+func (m *Manager) Revoke(sessionKey string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.tokens, sessionKey)
+}
+
 // Stop terminates the background cleanup goroutine. Idempotent.
 func (m *Manager) Stop() {
 	m.cancel()
