@@ -37,10 +37,10 @@ func TestCSRFManager_PerSessionIsolation(t *testing.T) {
 		t.Errorf("B's token must validate against B's session: %v", vErr)
 	}
 	// The actual regression guard.
-	if vErr := m.Validate(SessionKey("bearer-A"), tokenB); !errors.Is(vErr, errCSRFTokenInvalid) {
+	if vErr := m.Validate(SessionKey("bearer-A"), tokenB); !errors.Is(vErr, ErrTokenInvalid) {
 		t.Errorf("B's token presented to A's session must be invalid, got %v", vErr)
 	}
-	if vErr := m.Validate(SessionKey("bearer-B"), tokenA); !errors.Is(vErr, errCSRFTokenInvalid) {
+	if vErr := m.Validate(SessionKey("bearer-B"), tokenA); !errors.Is(vErr, ErrTokenInvalid) {
 		t.Errorf("A's token presented to B's session must be invalid, got %v", vErr)
 	}
 }
@@ -65,20 +65,20 @@ func TestCSRFManager_ValidateErrorClassification(t *testing.T) {
 	t.Cleanup(m.Stop)
 
 	// Missing.
-	if err := m.Validate("session", ""); !errors.Is(err, errCSRFTokenMissing) {
-		t.Errorf("empty token => %v, want errCSRFTokenMissing", err)
+	if err := m.Validate("session", ""); !errors.Is(err, ErrTokenMissing) {
+		t.Errorf("empty token => %v, want ErrTokenMissing", err)
 	}
 	// Invalid (no token ever minted for this session).
-	if err := m.Validate("session-with-no-mint", "anything"); !errors.Is(err, errCSRFTokenInvalid) {
-		t.Errorf("unminted session => %v, want errCSRFTokenInvalid", err)
+	if err := m.Validate("session-with-no-mint", "anything"); !errors.Is(err, ErrTokenInvalid) {
+		t.Errorf("unminted session => %v, want ErrTokenInvalid", err)
 	}
 	// Wrong value for a minted session.
 	tok, genErr := m.Generate("session2")
 	if genErr != nil {
 		t.Fatalf("generate: %v", genErr)
 	}
-	if vErr := m.Validate("session2", tok+"X"); !errors.Is(vErr, errCSRFTokenInvalid) {
-		t.Errorf("wrong token => %v, want errCSRFTokenInvalid", vErr)
+	if vErr := m.Validate("session2", tok+"X"); !errors.Is(vErr, ErrTokenInvalid) {
+		t.Errorf("wrong token => %v, want ErrTokenInvalid", vErr)
 	}
 }
 
@@ -172,9 +172,6 @@ func TestCSRFManager_GetOrCreate_ConcurrentSameSession(t *testing.T) {
 	}
 }
 
-// TestSessionKey_HashedNotPlaintext proves the bearer never lands in
-// the manager's internal map as plaintext — important so a heap dump
-// or debug log of the manager doesn't leak live bearer tokens.
 // TestCSRFManager_Revoke confirms a revoked session's token no longer
 // validates (logout hygiene), that revoking is idempotent, and that it
 // leaves other sessions untouched.
@@ -193,7 +190,7 @@ func TestCSRFManager_Revoke(t *testing.T) {
 	}
 
 	m.Revoke(SessionKey("bearer-A"))
-	if vErr := m.Validate(SessionKey("bearer-A"), tokA); !errors.Is(vErr, errCSRFTokenInvalid) {
+	if vErr := m.Validate(SessionKey("bearer-A"), tokA); !errors.Is(vErr, ErrTokenInvalid) {
 		t.Errorf("revoked token A validated (err=%v)", vErr)
 	}
 	if vErr := m.Validate(SessionKey("bearer-B"), tokB); vErr != nil {
@@ -205,6 +202,9 @@ func TestCSRFManager_Revoke(t *testing.T) {
 	m.Revoke(SessionKey("never-existed"))
 }
 
+// TestSessionKey_HashedNotPlaintext proves the bearer never lands in
+// the manager's internal map as plaintext — important so a heap dump
+// or debug log of the manager doesn't leak live bearer tokens.
 func TestSessionKey_HashedNotPlaintext(t *testing.T) {
 	t.Parallel()
 	bearer := "extremely-secret-bearer-token"
