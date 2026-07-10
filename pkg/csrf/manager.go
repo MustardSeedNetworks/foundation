@@ -37,11 +37,16 @@ const (
 	csrfLoopbackSessionKey = "_loopback_bypass"
 )
 
-// CSRF errors. Match stem's error vars for cross-repo parity.
+// CSRF validation errors. Exported so a consumer's own middleware can
+// distinguish the failure modes (via errors.Is) and render a distinct
+// response per cause — the same distinction Protect makes internally.
 var (
-	errCSRFTokenMissing = errors.New("CSRF token missing")
-	errCSRFTokenInvalid = errors.New("CSRF token invalid")
-	errCSRFTokenExpired = errors.New("CSRF token expired")
+	// ErrTokenMissing means no CSRF token was supplied on a state-changing request.
+	ErrTokenMissing = errors.New("CSRF token missing")
+	// ErrTokenInvalid means the supplied token did not match the session's token.
+	ErrTokenInvalid = errors.New("CSRF token invalid")
+	// ErrTokenExpired means the session's token existed but has passed its expiry.
+	ErrTokenExpired = errors.New("CSRF token expired")
 )
 
 // csrfTokenEntry stores a minted token plus its expiry.
@@ -155,18 +160,18 @@ func (m *Manager) GetOrCreate(sessionKey string) (string, error) {
 }
 
 // Validate constant-time-compares the supplied token against the one
-// stored for sessionKey. Returns one of errCSRFTokenMissing /
-// errCSRFTokenInvalid / errCSRFTokenExpired so callers can render
+// stored for sessionKey. Returns one of ErrTokenMissing /
+// ErrTokenInvalid / ErrTokenExpired so callers can render
 // different messages or audit-log differently per failure mode.
 func (m *Manager) Validate(sessionKey, token string) error {
 	if token == "" {
-		return errCSRFTokenMissing
+		return ErrTokenMissing
 	}
 	m.mu.RLock()
 	entry, ok := m.tokens[sessionKey]
 	m.mu.RUnlock()
 	if !ok {
-		return errCSRFTokenInvalid
+		return ErrTokenInvalid
 	}
 	if time.Now().After(entry.expiresAt) {
 		// Re-check under write lock to avoid a TOCTOU racing two
@@ -178,13 +183,22 @@ func (m *Manager) Validate(sessionKey, token string) error {
 		}
 		m.mu.Unlock()
 
-		return errCSRFTokenExpired
+		return ErrTokenExpired
 	}
 	if subtle.ConstantTimeCompare([]byte(token), []byte(entry.token)) != 1 {
-		return errCSRFTokenInvalid
+		return ErrTokenInvalid
 	}
 
 	return nil
+}
+
+// Revoke drops the token bound to sessionKey, typically on logout so a
+// leaked token can't outlive the session. A no-op if the session holds no
+// token. Idempotent.
+func (m *Manager) Revoke(sessionKey string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.tokens, sessionKey)
 }
 
 // Stop terminates the background cleanup goroutine. Idempotent.

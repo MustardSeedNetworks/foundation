@@ -36,11 +36,11 @@ func Protect(mgr *Manager, writeErr ErrorFunc, next http.HandlerFunc) http.Handl
 			switch err := mgr.Validate(sessionKey, clientToken); {
 			case err == nil:
 				// passes
-			case errors.Is(err, errCSRFTokenMissing):
+			case errors.Is(err, ErrTokenMissing):
 				writeErr(w, r, http.StatusForbidden, "csrf_token_missing",
 					"CSRF token required for state-changing requests. Include X-CSRF-Token header.")
 				return
-			case errors.Is(err, errCSRFTokenExpired):
+			case errors.Is(err, ErrTokenExpired):
 				writeErr(w, r, http.StatusForbidden, "csrf_token_expired",
 					"CSRF token expired; refetch /api/v1/csrf-token")
 				return
