@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -40,10 +41,29 @@ type DeviceFingerprint struct {
 	Platform   string `json:"platform"`
 }
 
+type fingerprintCache struct {
+	once        sync.Once
+	fingerprint DeviceFingerprint
+}
+
+func (c *fingerprintCache) get(generate func() DeviceFingerprint) *DeviceFingerprint {
+	c.once.Do(func() {
+		c.fingerprint = generate()
+	})
+	result := c.fingerprint
+	return &result
+}
+
+var processFingerprint fingerprintCache
+
 // GenerateFingerprint creates a unique device fingerprint.
 // The result is cached after the first call since hardware IDs don't change.
 func GenerateFingerprint() (*DeviceFingerprint, error) {
-	fp := &DeviceFingerprint{
+	return processFingerprint.get(generateFingerprint), nil
+}
+
+func generateFingerprint() DeviceFingerprint {
+	fp := DeviceFingerprint{
 		MACAddress: "",
 		CPUSerial:  "",
 		DiskSerial: "",
@@ -60,7 +80,7 @@ func GenerateFingerprint() (*DeviceFingerprint, error) {
 	fp.CPUSerial = getCPUSerial()
 	fp.DiskSerial = getDiskSerial()
 
-	return fp, nil
+	return fp
 }
 
 // Hash returns a 16-character hash of the fingerprint.
