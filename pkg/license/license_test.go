@@ -308,6 +308,24 @@ func TestActivationLifecycle(t *testing.T) {
 	}
 }
 
+func TestManagerFingerprintIsCopySafe(t *testing.T) {
+	t.Parallel()
+
+	pub, _ := testKeyPair(t)
+	policy := testPolicy()
+	mgr, err := license.NewManagerWithDir(license.NewVerifier(pub, policy), policy, t.TempDir())
+	if err != nil {
+		t.Fatalf("NewManagerWithDir: %v", err)
+	}
+
+	fingerprint := mgr.GetFingerprint()
+	hostname := fingerprint.Hostname
+	fingerprint.Hostname = "mutated"
+	if got := mgr.GetFingerprint().Hostname; got != hostname {
+		t.Fatalf("manager fingerprint hostname = %q after caller mutation, want %q", got, hostname)
+	}
+}
+
 // TestManagerConcurrentReadsAndWrites exercises the RWMutex so `go test -race`
 // fails loudly if the locking ever regresses.
 func TestManagerConcurrentReadsAndWrites(t *testing.T) {

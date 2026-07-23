@@ -108,10 +108,10 @@ func (m *Manager) GetState() *ActivationState {
 	return m.state
 }
 
-// GetFingerprint returns the device fingerprint. Immutable after
-// construction; no lock needed.
+// GetFingerprint returns a copy of the immutable device fingerprint.
 func (m *Manager) GetFingerprint() *DeviceFingerprint {
-	return m.fingerprint
+	fingerprint := *m.fingerprint
+	return &fingerprint
 }
 
 // IsActivated returns true if a valid license is active.
