@@ -53,6 +53,33 @@ var (
 	ErrDecode = errors.New("corewlan: malformed scan payload")
 )
 
+// Authorization reports whether this process may see network identifiers.
+type Authorization int
+
+// Authorization states, mirroring CLAuthorizationStatus.
+const (
+	AuthNotDetermined Authorization = 0
+	AuthRestricted    Authorization = 1
+	AuthDenied        Authorization = 2
+	AuthAuthorized    Authorization = 3
+)
+
+// String names an authorization state for logs and operator messages.
+func (a Authorization) String() string {
+	switch a {
+	case AuthNotDetermined:
+		return "not determined"
+	case AuthRestricted:
+		return "restricted"
+	case AuthDenied:
+		return "denied"
+	case AuthAuthorized:
+		return "authorized"
+	default:
+		return "unknown"
+	}
+}
+
 // Network is a single access point observed during a scan.
 type Network struct {
 	SSID         string `json:"ssid"`

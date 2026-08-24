@@ -19,7 +19,7 @@ static const NSTimeInterval cw_auth_settle_seconds = 2.0;
 // freshly-created manager reads as unauthorized even when the grant is held.
 // Create one manager for the process lifetime and let it settle before trusting
 // the first read.
-static BOOL cw_authorized(void) {
+static CLLocationManager *cw_manager(void) {
   static CLLocationManager *manager;
   static dispatch_once_t once;
 
@@ -36,7 +36,38 @@ static BOOL cw_authorized(void) {
     }
   });
 
-  return manager.authorizationStatus == kCLAuthorizationStatusAuthorizedAlways;
+  return manager;
+}
+
+static BOOL cw_authorized(void) {
+  return cw_manager().authorizationStatus ==
+         kCLAuthorizationStatusAuthorizedAlways;
+}
+
+int cw_authorization_status(void) {
+  return (int)cw_manager().authorizationStatus;
+}
+
+int cw_request_authorization(double timeout_seconds) {
+  @autoreleasepool {
+    CLLocationManager *manager = cw_manager();
+
+    // Requesting is what registers the application with locationd, which is
+    // what makes it appear in System Settings at all. The consent alert only
+    // presents for a foreground app in a GUI session, so a background agent
+    // will usually stay NotDetermined here and needs the toggle enabling by
+    // hand — but it cannot even be offered until this call has been made.
+    [manager requestWhenInUseAuthorization];
+
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout_seconds];
+    while (manager.authorizationStatus == kCLAuthorizationStatusNotDetermined &&
+           [deadline timeIntervalSinceNow] > 0) {
+      [[NSRunLoop currentRunLoop]
+             runMode:NSDefaultRunLoopMode
+          beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    }
+    return (int)manager.authorizationStatus;
+  }
 }
 
 static int cw_band(CWChannelBand b) {

@@ -2,12 +2,20 @@
 
 package corewlan
 
+import "time"
+
 // Scan is unavailable off macOS; callers select a platform implementation at a
 // higher layer.
 func Scan() ([]Network, error) { return nil, ErrUnsupported }
 
 // Current is unavailable off macOS.
 func Current() (*Network, error) { return nil, ErrUnsupported }
+
+// AuthorizationStatus is unavailable off macOS.
+func AuthorizationStatus() Authorization { return AuthNotDetermined }
+
+// RequestAuthorization is unavailable off macOS.
+func RequestAuthorization(_ time.Duration) Authorization { return AuthNotDetermined }
 
 // Interfaces is unavailable off macOS.
 func Interfaces() ([]string, error) { return nil, ErrUnsupported }
