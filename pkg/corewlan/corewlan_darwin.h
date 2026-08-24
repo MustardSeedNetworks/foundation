@@ -11,6 +11,20 @@ char *cw_scan(void);
 // has no Wi-Fi interface.
 char *cw_current(void);
 
+// cw_interfaces returns a malloc'd JSON array of Wi-Fi interface names.
+char *cw_interfaces(void);
+
+// cw_saved_networks returns a malloc'd JSON array of remembered network names,
+// or NULL when the host has no Wi-Fi interface.
+char *cw_saved_networks(void);
+
+// The action calls below return NULL on success, or a malloc'd error message
+// the caller owns and must release with cw_free.
+char *cw_associate(const char *ssid, const char *password);
+char *cw_disassociate(void);
+char *cw_set_power(int on);
+char *cw_forget(const char *ssid);
+
 void cw_free(char *s);
 
 #endif // MSN_COREWLAN_BRIDGE_H

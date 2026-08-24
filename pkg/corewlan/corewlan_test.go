@@ -102,3 +102,45 @@ func TestNetworkSNRWithoutNoise(t *testing.T) {
 		t.Errorf("SNR() = %d, want 0 when noise is unreported", got)
 	}
 }
+
+func TestDecodeNames(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		want    []string
+		wantErr error
+	}{
+		{"two names", `["en0","en1"]`, []string{"en0", "en1"}, nil},
+		{"empty array", `[]`, []string{}, nil},
+		// A JSON null must not surface as a nil slice callers have to guard.
+		{"null becomes empty", `null`, []string{}, nil},
+		{"malformed", `["en0"`, nil, corewlan.ErrDecode},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := corewlan.DecodeNames([]byte(tc.payload))
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("DecodeNames() error = %v, want %v", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("DecodeNames() unexpected error: %v", err)
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("DecodeNames() = %v, want %v", got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Errorf("name[%d] = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}

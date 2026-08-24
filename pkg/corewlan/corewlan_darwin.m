@@ -174,6 +174,24 @@ static char *cw_encode(NSDictionary *payload) {
   return out;
 }
 
+// cw_encode_array serializes a JSON array the caller owns.
+static char *cw_encode_array(NSArray *items) {
+  NSError *err = nil;
+  NSData *data = [NSJSONSerialization dataWithJSONObject:items
+                                                 options:0
+                                                   error:&err];
+  if (!data || err) {
+    return NULL;
+  }
+  char *out = malloc(data.length + 1);
+  if (!out) {
+    return NULL;
+  }
+  memcpy(out, data.bytes, data.length);
+  out[data.length] = '\0';
+  return out;
+}
+
 char *cw_scan(void) {
   @autoreleasepool {
     CWInterface *iface = [[CWWiFiClient sharedWiFiClient] interface];
@@ -226,3 +244,149 @@ char *cw_current(void) {
 }
 
 void cw_free(char *s) { free(s); }
+
+// cw_error copies an NSError's description into a caller-owned C string.
+static char *cw_error(NSString *message) {
+  const char *utf8 = message.UTF8String ?: "unknown CoreWLAN error";
+  size_t len = strlen(utf8);
+  char *out = malloc(len + 1);
+  if (!out) {
+    return NULL;
+  }
+  memcpy(out, utf8, len + 1);
+  return out;
+}
+
+// cw_iface_or_error resolves the default interface, reporting absence through
+// the same error channel the action calls use.
+static CWInterface *cw_iface_or_error(char **err) {
+  CWInterface *iface = [[CWWiFiClient sharedWiFiClient] interface];
+  if (!iface) {
+    *err = cw_error(@"no Wi-Fi interface");
+  }
+  return iface;
+}
+
+char *cw_interfaces(void) {
+  @autoreleasepool {
+    NSArray *names = [[CWWiFiClient sharedWiFiClient] interfaceNames] ?: @[];
+    return cw_encode_array(names);
+  }
+}
+
+char *cw_saved_networks(void) {
+  @autoreleasepool {
+    CWInterface *iface = [[CWWiFiClient sharedWiFiClient] interface];
+    if (!iface) {
+      return NULL;
+    }
+
+    NSMutableArray *names = [NSMutableArray array];
+    for (CWNetworkProfile *p in iface.configuration.networkProfiles) {
+      if (p.ssid) {
+        [names addObject:p.ssid];
+      }
+    }
+    return cw_encode_array(names);
+  }
+}
+
+char *cw_associate(const char *ssid, const char *password) {
+  @autoreleasepool {
+    char *err = NULL;
+    CWInterface *iface = cw_iface_or_error(&err);
+    if (!iface) {
+      return err;
+    }
+
+    NSString *target = [NSString stringWithUTF8String:ssid];
+    NSError *scanErr = nil;
+    NSSet<CWNetwork *> *found = [iface scanForNetworksWithName:target
+                                                         error:&scanErr];
+    if (scanErr) {
+      return cw_error(scanErr.localizedDescription);
+    }
+    CWNetwork *network = found.anyObject;
+    if (!network) {
+      return cw_error(
+          [NSString stringWithFormat:@"network %@ not found in range", target]);
+    }
+
+    NSError *joinErr = nil;
+    NSString *pass = password ? [NSString stringWithUTF8String:password] : nil;
+    if (![iface associateToNetwork:network password:pass error:&joinErr]) {
+      return cw_error(joinErr.localizedDescription ?: @"association failed");
+    }
+    return NULL;
+  }
+}
+
+char *cw_disassociate(void) {
+  @autoreleasepool {
+    char *err = NULL;
+    CWInterface *iface = cw_iface_or_error(&err);
+    if (!iface) {
+      return err;
+    }
+    [iface disassociate];
+    return NULL;
+  }
+}
+
+char *cw_set_power(int on) {
+  @autoreleasepool {
+    char *err = NULL;
+    CWInterface *iface = cw_iface_or_error(&err);
+    if (!iface) {
+      return err;
+    }
+
+    NSError *powerErr = nil;
+    if (![iface setPower:(on != 0) error:&powerErr]) {
+      return cw_error(powerErr.localizedDescription
+                          ?: @"could not change Wi-Fi power");
+    }
+    return NULL;
+  }
+}
+
+char *cw_forget(const char *ssid) {
+  @autoreleasepool {
+    char *err = NULL;
+    CWInterface *iface = cw_iface_or_error(&err);
+    if (!iface) {
+      return err;
+    }
+
+    NSString *target = [NSString stringWithUTF8String:ssid];
+    CWMutableConfiguration *config = [CWMutableConfiguration
+        configurationWithConfiguration:iface.configuration];
+
+    NSMutableOrderedSet *profiles = [config.networkProfiles mutableCopy];
+    NSUInteger before = profiles.count;
+    for (CWNetworkProfile *p in [profiles copy]) {
+      if ([p.ssid isEqualToString:target]) {
+        [profiles removeObject:p];
+      }
+    }
+    if (profiles.count == before) {
+      return cw_error(
+          [NSString stringWithFormat:@"network %@ is not remembered", target]);
+    }
+    config.networkProfiles = profiles;
+
+    // Rewriting the stored configuration is an administrative operation.
+    // Without an SFAuthorization holding the system-configuration right this
+    // fails, and that is reported rather than silently leaving the profile in
+    // place.
+    NSError *commitErr = nil;
+    if (![iface commitConfiguration:config
+                      authorization:nil
+                              error:&commitErr]) {
+      return cw_error(
+          commitErr.localizedDescription
+              ?: @"administrator rights required to forget a network");
+    }
+    return NULL;
+  }
+}
