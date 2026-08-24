@@ -47,6 +47,19 @@ func TestDecodeScan(t *testing.T) {
 			wantErr: corewlan.ErrLocationDenied,
 		},
 		{
+			// The status can report authorized while the data is stripped: a
+			// bundled binary launched directly is a different CoreWLAN client
+			// from its bundle. A scan that found networks and named none of
+			// them was redacted regardless of what the status claims.
+			name: "authorized status but every identifier stripped",
+			payload: `{"authorized":true,"networks":[
+				{"ssid":"","bssid":"","rssi":-47,"channel":40,"band":5},
+				{"ssid":"","bssid":"","rssi":-75,"channel":11,"band":2}]}`,
+			wantErr: corewlan.ErrLocationDenied,
+		},
+		{
+			// A genuinely empty airspace is not redaction — there is nothing to
+			// strip — so it must stay a successful, empty scan.
 			name:    "authorized but no networks",
 			payload: `{"authorized":true,"networks":[]}`,
 			want:    []corewlan.Network{},

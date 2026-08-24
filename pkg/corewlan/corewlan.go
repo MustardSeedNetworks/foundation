@@ -135,7 +135,7 @@ func DecodeScan(payload []byte) ([]Network, error) {
 		return nil, fmt.Errorf("%w: %w", ErrDecode, err)
 	}
 
-	if !p.Authorized {
+	if !p.Authorized || redacted(p.Networks) {
 		return nil, ErrLocationDenied
 	}
 
@@ -145,4 +145,27 @@ func DecodeScan(payload []byte) ([]Network, error) {
 		networks = append(networks, n)
 	}
 	return networks, nil
+}
+
+// redacted reports whether a non-empty scan carries no identifiers at all.
+//
+// The authorization status alone cannot be trusted. CoreWLAN redacts according
+// to the calling process's own client identity, and a bundled executable
+// launched directly rather than through LaunchServices is a *different* client
+// from its bundle — so the manager can report the bundle's grant while the scan
+// it returns is stripped. Observed on macOS 27.0: status authorized, thirteen
+// networks, every SSID and BSSID empty.
+//
+// A real observation always carries a BSSID, so a scan that found networks and
+// named none of them was redacted, whatever the status says.
+func redacted(networks []Network) bool {
+	if len(networks) == 0 {
+		return false
+	}
+	for _, n := range networks {
+		if n.BSSID != "" {
+			return false
+		}
+	}
+	return true
 }
