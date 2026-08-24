@@ -12,6 +12,7 @@ import "C"
 
 import (
 	"errors"
+	"time"
 	"unsafe"
 )
 
@@ -47,6 +48,24 @@ func action(call func() *C.char) error {
 	}
 	defer C.cw_free(out)
 	return errors.New("corewlan: " + C.GoString(out))
+}
+
+// AuthorizationStatus reports whether this process holds Location Services
+// authorization, without asking for it.
+func AuthorizationStatus() Authorization {
+	return Authorization(C.cw_authorization_status())
+}
+
+// RequestAuthorization asks for Location Services authorization and waits up to
+// timeout for a decision.
+//
+// Requesting is also what registers the application with locationd, which is
+// what makes it appear in System Settings. The consent alert only presents for a
+// foreground application in a GUI session, so a background agent will usually
+// remain [AuthNotDetermined] and needs the permission enabling by hand — but it
+// cannot even be offered until this has been called at least once.
+func RequestAuthorization(timeout time.Duration) Authorization {
+	return Authorization(C.cw_request_authorization(C.double(timeout.Seconds())))
 }
 
 // Interfaces lists the host's Wi-Fi interface names.

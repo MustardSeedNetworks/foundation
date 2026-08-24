@@ -144,3 +144,24 @@ func TestDecodeNames(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthorizationString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		auth corewlan.Authorization
+		want string
+	}{
+		{corewlan.AuthNotDetermined, "not determined"},
+		{corewlan.AuthRestricted, "restricted"},
+		{corewlan.AuthDenied, "denied"},
+		{corewlan.AuthAuthorized, "authorized"},
+		{corewlan.Authorization(99), "unknown"},
+	}
+
+	for _, tc := range tests {
+		if got := tc.auth.String(); got != tc.want {
+			t.Errorf("Authorization(%d).String() = %q, want %q", tc.auth, got, tc.want)
+		}
+	}
+}

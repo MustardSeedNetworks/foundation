@@ -11,6 +11,14 @@ char *cw_scan(void);
 // has no Wi-Fi interface.
 char *cw_current(void);
 
+// cw_authorization_status returns the process's CLAuthorizationStatus.
+int cw_authorization_status(void);
+
+// cw_request_authorization asks for Location Services authorization and waits
+// up to timeout_seconds for a decision, returning the resulting
+// CLAuthorizationStatus.
+int cw_request_authorization(double timeout_seconds);
+
 // cw_interfaces returns a malloc'd JSON array of Wi-Fi interface names.
 char *cw_interfaces(void);
 
