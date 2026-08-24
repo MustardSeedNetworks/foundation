@@ -63,3 +63,31 @@ jobs:
       - uses: ./.github/actions/setup-go
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: govulncheck ./...
+
+  # Branch protection requires ONLY this aggregate, never the individual job
+  # names: enumerating them means every rename or added job silently stops
+  # being gated until someone remembers to update the protection rule. Matches
+  # the CI Complete gate seed, stem and niac already use.
+  ci-complete:
+    name: CI Complete
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - build-test
+      - build-test-darwin
+      - govulncheck
+    if: always()
+    steps:
+      - name: Verify upstream results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "Upstream job results:"
+          echo "$RESULTS" | jq '.'
+          # Fail if any upstream is anything other than success or skipped.
+          # (cancelled and failure both fail this gate.)
+          if ! echo "$RESULTS" | jq -e 'to_entries | map(.value.result) | all(. == "success" or . == "skipped")' >/dev/null; then
+            echo "::error::One or more required CI jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All required CI jobs passed (or were intentionally skipped)."
