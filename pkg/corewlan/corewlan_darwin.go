@@ -60,10 +60,17 @@ func AuthorizationStatus() Authorization {
 // timeout for a decision.
 //
 // Requesting is also what registers the application with locationd, which is
-// what makes it appear in System Settings. The consent alert only presents for a
-// foreground application in a GUI session, so a background agent will usually
-// remain [AuthNotDetermined] and needs the permission enabling by hand — but it
-// cannot even be offered until this has been called at least once.
+// what makes it appear in System Settings. The permission cannot be offered at
+// all until this has been called at least once.
+//
+// A background agent is prompted normally, but only if its bundle carries the
+// com.apple.security.personal-information.location entitlement. Under the
+// hardened runtime — which notarization requires — locationd registers the
+// client and then declines to display the dialog without it, logging "Client
+// has supported the hardened runtime but doesn't have the entitlement". Since
+// the client is still registered, the bundle appears in System Settings and can
+// be enabled by hand, so a missing entitlement looks like macOS refusing to
+// prompt agents rather than a signing defect.
 func RequestAuthorization(timeout time.Duration) Authorization {
 	return Authorization(C.cw_request_authorization(C.double(timeout.Seconds())))
 }
