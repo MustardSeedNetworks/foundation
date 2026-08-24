@@ -80,6 +80,19 @@ func (n Network) SNR() int {
 	return n.RSSI - n.Noise
 }
 
+// DecodeNames converts a bridge JSON array of names into a slice. It is
+// exported so the decoding rule can be tested without a Wi-Fi adapter.
+func DecodeNames(payload []byte) ([]string, error) {
+	var names []string
+	if err := json.Unmarshal(payload, &names); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrDecode, err)
+	}
+	if names == nil {
+		names = []string{}
+	}
+	return names, nil
+}
+
 // scanPayload is the wire format produced by the Objective-C bridge.
 type scanPayload struct {
 	Authorized bool      `json:"authorized"`

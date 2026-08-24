@@ -10,6 +10,11 @@ package corewlan
 */
 import "C"
 
+import (
+	"errors"
+	"unsafe"
+)
+
 // bridge calls one of the Objective-C entry points and copies its result into
 // Go memory, releasing the C allocation in every path.
 func bridge(call func() *C.char) ([]byte, error) {
@@ -31,6 +36,73 @@ func Scan() ([]Network, error) {
 		return nil, err
 	}
 	return DecodeScan(payload)
+}
+
+// action runs a bridge call that reports failure as an error string, and
+// releases that string in every path.
+func action(call func() *C.char) error {
+	out := call()
+	if out == nil {
+		return nil
+	}
+	defer C.cw_free(out)
+	return errors.New("corewlan: " + C.GoString(out))
+}
+
+// Interfaces lists the host's Wi-Fi interface names.
+func Interfaces() ([]string, error) {
+	payload, err := bridge(func() *C.char { return C.cw_interfaces() })
+	if err != nil {
+		return nil, err
+	}
+	return DecodeNames(payload)
+}
+
+// SavedNetworks lists the names of networks the system remembers.
+func SavedNetworks() ([]string, error) {
+	payload, err := bridge(func() *C.char { return C.cw_saved_networks() })
+	if err != nil {
+		return nil, err
+	}
+	return DecodeNames(payload)
+}
+
+// Associate joins the named network, scanning for it first. Pass an empty
+// password for an open network.
+func Associate(ssid, password string) error {
+	cSSID := C.CString(ssid)
+	defer C.free(unsafe.Pointer(cSSID))
+
+	var cPass *C.char
+	if password != "" {
+		cPass = C.CString(password)
+		defer C.free(unsafe.Pointer(cPass))
+	}
+
+	return action(func() *C.char { return C.cw_associate(cSSID, cPass) })
+}
+
+// Disassociate leaves the current network without powering the radio down.
+func Disassociate() error {
+	return action(func() *C.char { return C.cw_disassociate() })
+}
+
+// SetPower turns the Wi-Fi radio on or off.
+func SetPower(on bool) error {
+	var v C.int
+	if on {
+		v = 1
+	}
+	return action(func() *C.char { return C.cw_set_power(v) })
+}
+
+// Forget removes a remembered network. Rewriting the stored configuration is an
+// administrative operation and fails without the system-configuration right.
+func Forget(ssid string) error {
+	cSSID := C.CString(ssid)
+	defer C.free(unsafe.Pointer(cSSID))
+
+	return action(func() *C.char { return C.cw_forget(cSSID) })
 }
 
 // Current returns the currently associated network, or [ErrNotAssociated] when
