@@ -24,7 +24,43 @@ jobs:
       - uses: ./.github/actions/setup-go
       - run: go build ./...
       - run: go vet ./...
-      - run: go test -race ./...
+      # -covermode=atomic because the suite runs under -race: the default
+      # set/count modes are not race-safe, and a coverage counter data race
+      # would be reported as a test failure rather than a coverage problem.
+      - run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+          echo "Current coverage: ${COVERAGE}%"
+
+          # Anti-regression floor, not an aspiration. Measured on Linux at the
+          # commit this gate was added: corewlan 75.6, csrf 68.4, license 67.0,
+          # total 68.0. 63 leaves five points of headroom for ordinary
+          # refactoring while still catching a real drop. The fleet minimum is
+          # 50; setting it there would leave an 18-point hole a regression could
+          # fall through unnoticed.
+          #
+          # Ratchet plan (#14): raise as coverage rises. Never lower it to make
+          # a red build green -- fix or add the tests instead.
+          #   2026-Q3: 63 (current)
+          #   2027-Q2: 70
+          MIN_COVERAGE=63
+
+          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+            echo "::error::Coverage ${COVERAGE}% is below the minimum of ${MIN_COVERAGE}%"
+            exit 1
+          fi
+
+      - name: Coverage summary
+        run: |
+          {
+            echo "### Go coverage"
+            echo
+            echo '```'
+            go tool cover -func=coverage.out | tail -n 20
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # pkg/corewlan's CoreWLAN binding is behind //go:build darwin, so the job
   # above only ever compiles the !darwin stub — a break in the cgo/Objective-C
@@ -61,8 +97,104 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-go
-      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
-      - run: govulncheck ./...
+      - name: Run govulncheck
+        # Pinned, not @latest. govulncheck is a hard gate per fleet policy, and
+        # an unpinned gate can change behaviour with no code change here --
+        # either a spurious break or a silent loss of coverage. Same pin as
+        # trellis; Renovate tracks it via the customManager in
+        # MustardSeedNetworks/.github.
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          govulncheck ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-go
+
+      # go vet already runs above, but it is not a security linter: it does not
+      # run gosec, so until this job existed the module holding the Ed25519
+      # licence verification and the CSRF token manager had no Go security
+      # linting at all. The enabled set is deliberately small -- see
+      # .golangci.yml for why seed's 78-linter config was not copied here.
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.2
+
+      - name: Format check
+        run: test -z "$(gofmt -l .)"
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          # gitleaks scans history, not just the working tree.
+          fetch-depth: 0
+
+      # gitleaks-action requires a paid licence for organization repos and
+      # fails red without ever scanning. Use the MIT-licensed CLI directly --
+      # same engine, same config. Matches seed's security job.
+      - name: Run gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+          # SHA-256 of gitleaks_8.30.0_linux_x64.tar.gz from the upstream
+          # checksums.txt. Rotate together with GITLEAKS_VERSION on upgrade.
+          GITLEAKS_SHA256: "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e"
+        run: |
+          set -euo pipefail
+          gitleaks_dir=$(mktemp -d)
+          trap 'rm -rf "$gitleaks_dir"' EXIT
+          curl -sSfL -o "$gitleaks_dir/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $gitleaks_dir/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$gitleaks_dir/gitleaks.tar.gz" -C "$gitleaks_dir" gitleaks
+          "$gitleaks_dir/gitleaks" git . --config .gitleaks.toml --redact --no-banner --exit-code 1
+
+  # Fleet-shared Semgrep gate. It scans with p/golang among its configs, so a
+  # Go-only module is in scope; the reusable workflow is the single edit point
+  # for the pinned version and severity policy across the fleet.
+  semgrep:
+    name: Semgrep SAST
+    uses: MustardSeedNetworks/.github/.github/workflows/semgrep.yml@a146506fd53fe5e01fdc01892dd838c10081d183 # v1.9.0
+    permissions:
+      contents: read
+      security-events: write
+
+  workflow-lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-go
+
+      - name: Run actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          # SC2129 is a style preference about grouping `>>` redirects in step
+          # summaries; every correctness-level rule stays enabled.
+          actionlint -ignore 'SC2129' -color
+
+      - name: Run zizmor
+        env:
+          # zizmor resolves action refs against the API; without a token it
+          # falls back to unauthenticated requests and gets rate-limited.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pipx install zizmor==1.29.0
+          zizmor --min-severity high --color always .github/workflows/
 
   # Branch protection requires ONLY this aggregate, never the individual job
   # names: enumerating them means every rename or added job silently stops
@@ -76,6 +208,10 @@ jobs:
       - build-test
       - build-test-darwin
       - govulncheck
+      - lint
+      - security
+      - semgrep
+      - workflow-lint
     if: always()
     steps:
       - name: Verify upstream results

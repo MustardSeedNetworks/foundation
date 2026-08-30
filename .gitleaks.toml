@@ -1,0 +1,12 @@
+# Secret detection for foundation. Scanned in CI by the gitleaks CLI.
+#
+# Deliberately just the upstream default ruleset with no allowlist. This module
+# has no config files, no fixtures and no frontend, and the default rules
+# produce zero findings across its full history as it stands — so there is
+# nothing to excuse. An allowlist entry is a hole; add one only with a comment
+# naming exactly what it excuses and why that thing is safe to commit.
+
+title = "Foundation Gitleaks Configuration"
+
+[extend]
+useDefault = true
