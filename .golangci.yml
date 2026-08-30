@@ -1,0 +1,32 @@
+version: "2"
+
+issues:
+  # 0 = report everything. The default is 50 per linter, which silently hides
+  # findings past that point.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    # Security and correctness only, following trellis's config rather than
+    # seed/stem/niac's 78-linter community set. This module is three packages
+    # with zero external dependencies; seed's config drags in depguard
+    # architecture rules and path exclusions for directories that do not exist
+    # here, and dead rules that look like coverage are worse than no rules.
+    #
+    # gosec is the one whose absence actually mattered: `go vet` does not run
+    # it, so until now the repository holding the Ed25519 licence verification
+    # and the CSRF token manager had no Go security linting at all.
+    - gosec # security scanner — weak crypto, hardcoded credentials, unsafe ops
+    - bodyclose # unclosed HTTP response bodies — resource leak
+    - errorlint # broken errors.Is/As and %w wrapping
+    - noctx # HTTP requests without context — no cancellation or timeout
+    - nilerr # returns nil after checking err != nil
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
