@@ -182,6 +182,17 @@ jobs:
       contents: read
       security-events: write
 
+  # CodeQL's own job reports success when the *analysis* succeeds, whether or
+  # not it found anything -- so without this the repository could carry open
+  # High alerts with every check green. Scoped to CodeQL rather than "any High
+  # alert": the code-scanning tab also carries Scorecard scores at High
+  # severity, several of which encode deliberate decisions.
+  codeql-alert-gate:
+    name: CodeQL Alert Gate
+    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@cd60ad04e0f305b3706481580091dc7f3e1863aa # v1.11.0
+    permissions:
+      security-events: read
+
   workflow-lint:
     name: Workflow Lint
     runs-on: ubuntu-latest
@@ -223,6 +234,7 @@ jobs:
       - lint
       - security
       - semgrep
+      - codeql-alert-gate
       - workflow-lint
     if: always()
     steps:
