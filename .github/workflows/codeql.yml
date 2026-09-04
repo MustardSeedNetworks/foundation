@@ -1,0 +1,56 @@
+# =============================================================================
+# CodeQL analysis
+# =============================================================================
+# foundation had no CodeQL at all, and default setup is `not-configured`. That
+# left the module holding the Ed25519 licence verification and the per-session
+# CSRF token manager -- the two pieces of security-critical code four repos
+# depend on -- with no semantic security analysis, only golangci-lint's gosec.
+#
+# Go only. There is no JS/TS here, and listing a language with no source makes
+# the analysis fail rather than skip.
+# =============================================================================
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Weekly on Monday at 6am UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    # Matches the fleet: CodeQL on private repos needs Advanced Security, which
+    # the org's plan does not carry. foundation is public, so this runs.
+    if: ${{ github.event.repository.visibility == 'public' }}
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          languages: go
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          category: "/language:go"

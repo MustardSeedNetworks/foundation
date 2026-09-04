@@ -1,0 +1,16 @@
+# =============================================================================
+# CodeQL configuration for foundation
+# =============================================================================
+# Same query packs as the product repos. No query-filters: seed carries one for
+# a HIBP SHA-1 false positive that has no equivalent here, and an exclusion
+# added before it is needed is an exclusion nobody can justify later.
+#
+# A false positive is closed by dismissing the alert with the reason recorded
+# in the dismissal, not by adding a filter here.
+# =============================================================================
+
+name: "foundation CodeQL config"
+
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
