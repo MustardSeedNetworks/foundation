@@ -9,9 +9,21 @@ on:
 permissions:
   contents: read
 
+# Main gets a concurrency group per commit; PRs share one group per ref.
+#
+# `cancel-in-progress: true` cancelled main runs outright, and even turning it
+# off on main would not be enough: GitHub keeps at most one *pending* run per
+# concurrency group and cancels the older pending one as soon as a newer
+# arrives, so a burst of merges kills the intermediate main runs while they are
+# still queued — zero jobs, no red check, nothing to retry. Keying main by SHA
+# gives every commit its own group, so no main run is ever pending behind
+# another. Same shape as seed / stem / niac-go / trellis (fleet CI pass F1-1),
+# which foundation was left out of.
+#
+# Superseded PR runs are still waste and still get cancelled.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.ref == 'refs/heads/main' && format('-{0}', github.sha) || '' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build-test:
