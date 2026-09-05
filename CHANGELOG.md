@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.3...v0.5.4) (2026-09-05)
+
+
+### Continuous Integration
+
+* arm auto-merge on the release PR ([#24](https://github.com/MustardSeedNetworks/foundation/issues/24)) ([6fbcb1b](https://github.com/MustardSeedNetworks/foundation/commit/6fbcb1bc96d03cc003bd05c479d69163658f47eb)), closes [#23](https://github.com/MustardSeedNetworks/foundation/issues/23)
+
 ## [0.5.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.2...v0.5.3) (2026-09-04)
 
 
