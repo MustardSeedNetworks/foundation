@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.4...v0.5.5) (2026-09-05)
+
+
+### Continuous Integration
+
+* give release-please's gh calls a repository ([#27](https://github.com/MustardSeedNetworks/foundation/issues/27)) ([844d077](https://github.com/MustardSeedNetworks/foundation/commit/844d07732e7bd66e874bb4eb3c5b6ddbc7f61e99)), closes [#26](https://github.com/MustardSeedNetworks/foundation/issues/26)
+
 ## [0.5.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.3...v0.5.4) (2026-09-05)
 
 
