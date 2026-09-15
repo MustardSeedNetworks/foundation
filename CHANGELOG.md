@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.5...v0.5.6) (2026-09-15)
+
+
+### Documentation
+
+* **adr:** record the decision to hold the fleet's licence and CSRF core here ([#30](https://github.com/MustardSeedNetworks/foundation/issues/30)) ([09969c1](https://github.com/MustardSeedNetworks/foundation/commit/09969c15a8f0384c4a10aeb7d11e6ff1da72a3e4))
+
 ## [0.5.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.4...v0.5.5) (2026-09-05)
 
 
