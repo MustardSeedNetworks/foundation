@@ -37,6 +37,10 @@ Features are resolved **only** from `FeaturesForTier`, never read from the signe
 token — a signed token can only grant what the running build knows about. Each
 product keeps its own feature catalog; only the crypto lives here.
 
+## Decisions
+
+Why this module exists and what stays per-product: [`docs/adr/`](docs/adr/README.md).
+
 ## Layout note (do not "fix")
 
 Packages live under `pkg/` deliberately. A top-level directory named `license/`
