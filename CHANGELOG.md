@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.6...v0.5.7) (2026-09-16)
+
+
+### Bug Fixes
+
+* **license:** persist the token's own expiry on activation ([#37](https://github.com/MustardSeedNetworks/foundation/issues/37)) ([ea07e8a](https://github.com/MustardSeedNetworks/foundation/commit/ea07e8a06d8b96b6d5927f6fcad5b7db9fba376f)), closes [#32](https://github.com/MustardSeedNetworks/foundation/issues/32)
+
 ## [0.5.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.5...v0.5.6) (2026-09-15)
 
 
