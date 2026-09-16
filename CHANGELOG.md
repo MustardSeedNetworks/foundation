@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.8...v0.5.9) (2026-09-16)
+
+
+### Bug Fixes
+
+* **license:** bind persisted activation state to its signature ([#42](https://github.com/MustardSeedNetworks/foundation/issues/42)) ([c6c8c3b](https://github.com/MustardSeedNetworks/foundation/commit/c6c8c3b401e2aec65780e87e367fb72a74ef1c67)), closes [#34](https://github.com/MustardSeedNetworks/foundation/issues/34)
+
 ## [0.5.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.7...v0.5.8) (2026-09-16)
 
 
