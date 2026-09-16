@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.7...v0.5.8) (2026-09-16)
+
+
+### Bug Fixes
+
+* **license:** classify how activation state loaded and fail closed ([#39](https://github.com/MustardSeedNetworks/foundation/issues/39)) ([859038b](https://github.com/MustardSeedNetworks/foundation/commit/859038b392ae88f7de802624f0c9e987900f4ed9)), closes [#33](https://github.com/MustardSeedNetworks/foundation/issues/33)
+
 ## [0.5.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.6...v0.5.7) (2026-09-16)
 
 
