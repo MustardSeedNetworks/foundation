@@ -369,3 +369,61 @@ func TestManagerConcurrentReadsAndWrites(t *testing.T) {
 
 	<-done
 }
+
+// TestActivatePersistsTokenExpiry pins the persisted expiry to the token's own
+// exp rather than a fixed horizon: a short-lived evaluation must not become a
+// year of the paid tier, and a perpetual token (exp = 0) must not stop
+// validating after one.
+func TestActivatePersistsTokenExpiry(t *testing.T) {
+	t.Parallel()
+	pub, priv := testKeyPair(t)
+	policy := testPolicy()
+	v := license.NewVerifier(pub, policy)
+
+	thirtyDays := time.Now().Add(30 * 24 * time.Hour).Truncate(time.Second)
+
+	tests := []struct {
+		name              string
+		exp               int64
+		wantExpiresAt     time.Time
+		wantDaysRemaining int
+	}{
+		{
+			name:              "short-lived evaluation keeps its own expiry",
+			exp:               thirtyDays.Unix(),
+			wantExpiresAt:     thirtyDays.UTC(),
+			wantDaysRemaining: 30,
+		},
+		{
+			name:              "perpetual token never expires",
+			exp:               0,
+			wantExpiresAt:     time.Time{},
+			wantDaysRemaining: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			token := signToken(t, priv, "testprod", "9001", "SERIAL-EXP", 2, tc.exp)
+			mgr, err := license.NewManagerWithDir(v, policy, t.TempDir())
+			if err != nil {
+				t.Fatalf("NewManagerWithDir: %v", err)
+			}
+
+			res := mgr.Activate(token)
+			if !res.Success {
+				t.Fatalf("Activate: %+v", res)
+			}
+			if got := res.DaysRemaining; got != tc.wantDaysRemaining {
+				t.Errorf("DaysRemaining = %d, want %d", got, tc.wantDaysRemaining)
+			}
+			if got := mgr.GetState().ExpiresAt; !got.Equal(tc.wantExpiresAt) {
+				t.Errorf("persisted ExpiresAt = %v, want %v", got, tc.wantExpiresAt)
+			}
+			if !mgr.IsActivated() {
+				t.Error("expected activated immediately after Activate")
+			}
+		})
+	}
+}

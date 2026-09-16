@@ -27,7 +27,7 @@ const CheckInInterval = 30
 
 const (
 	hoursPerDay = 24
-	daysPerYear = 365
+	day         = hoursPerDay * time.Hour
 )
 
 // ActivationState represents the current license activation status.
@@ -276,7 +276,7 @@ func (m *Manager) Activate(licenseKey string) *ActivationResult {
 		Tier:            info.Tier,
 		ActivatedAt:     time.Now(),
 		LastValidatedAt: time.Now(),
-		ExpiresAt:       time.Now().AddDate(1, 0, 0),
+		ExpiresAt:       info.ExpiresAt,
 		IsTrialMode:     false,
 		Features:        info.Features,
 	}
@@ -293,8 +293,23 @@ func (m *Manager) Activate(licenseKey string) *ActivationResult {
 		Success:       true,
 		Message:       fmt.Sprintf("License activated successfully! Tier: %d", info.Tier),
 		Tier:          info.Tier,
-		DaysRemaining: daysPerYear,
+		DaysRemaining: daysUntil(info.ExpiresAt),
 	}
+}
+
+// daysUntil reports whole days left until t, rounded up so any unexpired
+// licence reports at least one day. A zero t is perpetual (matching the
+// IsZero() check in isActivatedLocked) and reports 0, which the result's
+// omitempty drops from the wire.
+func daysUntil(t time.Time) int {
+	if t.IsZero() {
+		return 0
+	}
+	remaining := time.Until(t)
+	if remaining <= 0 {
+		return 0
+	}
+	return int((remaining + day - time.Nanosecond) / day)
 }
 
 // Deactivate removes the current license.
