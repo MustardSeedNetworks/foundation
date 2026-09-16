@@ -52,6 +52,47 @@ type ActivationResult struct {
 	IsTrialMode   bool   `json:"isTrialMode"`
 }
 
+// LoadStatus reports how the activation state on disk loaded when the manager
+// was built. The difference matters: a missing file is a fresh install and may
+// start a trial, while a file that exists but cannot be used must not, because
+// starting one overwrites it and a paid activation is then unrecoverable.
+type LoadStatus int
+
+const (
+	// StatusLoaded means a state file was read and parsed. Whether it still
+	// entitles anything is the manager's answer, not this one's.
+	StatusLoaded LoadStatus = iota
+	// StatusMissing means no state file exists.
+	StatusMissing
+	// StatusUnreadable means a state file exists but could not be read.
+	StatusUnreadable
+	// StatusMalformed means the bytes were read but did not decrypt or parse.
+	StatusMalformed
+)
+
+// String names the status for an operator-facing message.
+func (s LoadStatus) String() string {
+	switch s {
+	case StatusLoaded:
+		return "loaded"
+	case StatusMissing:
+		return "missing"
+	case StatusUnreadable:
+		return "unreadable"
+	case StatusMalformed:
+		return "malformed"
+	}
+	return "unknown"
+}
+
+// Usable reports whether the state on disk can be acted on. An unusable state
+// entitles nothing beyond the free grant and must never be replaced by an
+// automatic trial: the operator holds a licence file this build cannot read,
+// and destroying it is not the product's call.
+func (s LoadStatus) Usable() bool {
+	return s == StatusLoaded || s == StatusMissing
+}
+
 // Manager handles license activation and validation.
 //
 // Manager is safe for concurrent use. State mutations (Activate,
@@ -67,6 +108,8 @@ type Manager struct {
 	configDir   string
 	verifier    *Verifier
 	policy      ProductPolicy
+	loadStatus  LoadStatus
+	loadErr     error
 }
 
 // NewManager creates a new license manager rooted at the default
@@ -96,7 +139,7 @@ func NewManagerWithDir(v *Verifier, policy ProductPolicy, configDir string) (*Ma
 		policy:      policy,
 	}
 
-	_ = m.loadState() // Best-effort.
+	m.loadStatus, m.loadErr = m.loadState()
 	return m, nil
 }
 
@@ -112,6 +155,22 @@ func (m *Manager) GetState() *ActivationState {
 func (m *Manager) GetFingerprint() *DeviceFingerprint {
 	fingerprint := *m.fingerprint
 	return &fingerprint
+}
+
+// LoadStatus reports how the state on disk loaded. Products log it once at
+// startup and fail closed to their free tier when it is not Usable.
+func (m *Manager) LoadStatus() LoadStatus {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.loadStatus
+}
+
+// LoadError returns why the state on disk could not be used, or nil. It is the
+// one reason to log alongside LoadStatus.
+func (m *Manager) LoadError() error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.loadErr
 }
 
 // IsActivated returns true if a valid license is active.
@@ -198,11 +257,29 @@ func (m *Manager) StartTrial() *ActivationResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if !m.loadStatus.Usable() {
+		return &ActivationResult{
+			Success: false,
+			Message: fmt.Sprintf(
+				"License state is %s and will not be replaced; restore or re-enter the license key.",
+				m.loadStatus),
+			Tier: tierInvalid,
+		}
+	}
+
 	if m.isActivatedLocked() && !m.state.IsTrialMode {
 		return &ActivationResult{
 			Success: true,
 			Message: "Already activated with full license",
 			Tier:    m.state.Tier,
+		}
+	}
+
+	if m.state != nil && m.state.LicenseKey != "" {
+		return &ActivationResult{
+			Success: false,
+			Message: "This license has expired; enter a current license key rather than starting a trial.",
+			Tier:    tierInvalid,
 		}
 	}
 
@@ -355,35 +432,39 @@ func (m *Manager) NeedsCheckIn() bool {
 	return daysSinceCheck >= CheckInInterval
 }
 
-func (m *Manager) loadState() error {
+// loadState reads the persisted activation state and classifies the outcome.
+// Only a genuinely absent file is StatusMissing; every other failure leaves the
+// manager without state AND says so, so callers never read "no state" as a
+// fresh install.
+func (m *Manager) loadState() (LoadStatus, error) {
 	licensePath := filepath.Clean(filepath.Join(m.configDir, m.policy.LicenseFileName))
 
 	f, openErr := os.Open(licensePath)
 	if openErr != nil {
 		if os.IsNotExist(openErr) {
-			return nil
+			return StatusMissing, nil
 		}
-		return fmt.Errorf("open license file: %w", openErr)
+		return StatusUnreadable, fmt.Errorf("open license file: %w", openErr)
 	}
 	defer func() { _ = f.Close() }()
 
 	data, readErr := io.ReadAll(f)
 	if readErr != nil {
-		return fmt.Errorf("read license file: %w", readErr)
+		return StatusUnreadable, fmt.Errorf("read license file: %w", readErr)
 	}
 
 	decrypted, decryptErr := m.decrypt(data)
 	if decryptErr != nil {
-		return fmt.Errorf("failed to decrypt license: %w", decryptErr)
+		return StatusMalformed, fmt.Errorf("failed to decrypt license: %w", decryptErr)
 	}
 
 	state := &ActivationState{}
 	if unmarshalErr := json.Unmarshal(decrypted, state); unmarshalErr != nil {
-		return fmt.Errorf("failed to parse license: %w", unmarshalErr)
+		return StatusMalformed, fmt.Errorf("failed to parse license: %w", unmarshalErr)
 	}
 
 	m.state = state
-	return nil
+	return StatusLoaded, nil
 }
 
 func (m *Manager) saveState() error {
