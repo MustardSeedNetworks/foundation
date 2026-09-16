@@ -51,6 +51,18 @@ still builds standalone; stem and niac import it freely.
   so the packages are kept small and their exported surface changes rarely.
 - Nothing here calls out. Validation is offline; the products' opt-in
   auto-upgrade (owner 2026-09-12) is not this module's concern.
+- The activation state file's encryption is tamper-evidence and portability
+  (a file from one product cannot be renamed into another's config dir), not
+  confidentiality against the machine's own user: its key is derived from the
+  device fingerprint and a salt compiled into the shipped binary, both of
+  which any local process can read. So nothing the file says is an
+  entitlement. Every tier and feature the manager reports is re-derived on
+  load from the Ed25519 signature that granted it, or from the policy's own
+  trial terms (#34). The residual is a user who patches the binary or
+  substitutes the embedded public key, which offline validation has always
+  accepted; and a trial whose start date is rewritten forward, or a machine
+  clock moved backwards past it, is refused rather than honoured, so a legit
+  trial can need the operator to clear the file after a clock correction.
 - `main` is protected by classic branch protection (`CI Complete` + `Lint PR
   Title`, strict), not by a ruleset; check both endpoints before calling it
   unprotected.

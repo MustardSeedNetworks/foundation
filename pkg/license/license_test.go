@@ -306,6 +306,9 @@ func TestActivationLifecycle(t *testing.T) {
 	if mgr2.IsActivated() {
 		t.Error("expected !IsActivated after Deactivate")
 	}
+	if got := mgr2.LoadStatus(); got != license.StatusMissing {
+		t.Errorf("LoadStatus after Deactivate = %v, want missing; the file is gone", got)
+	}
 }
 
 func TestManagerFingerprintIsCopySafe(t *testing.T) {
