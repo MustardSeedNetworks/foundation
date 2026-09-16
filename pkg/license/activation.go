@@ -52,10 +52,12 @@ type ActivationResult struct {
 	IsTrialMode   bool   `json:"isTrialMode"`
 }
 
-// LoadStatus reports how the activation state on disk loaded when the manager
-// was built. The difference matters: a missing file is a fresh install and may
-// start a trial, while a file that exists but cannot be used must not, because
-// starting one overwrites it and a paid activation is then unrecoverable.
+// LoadStatus reports the standing of the persisted activation state. Every
+// writer maintains it, so it describes the state the manager is acting on and
+// not merely how construction went. The differences matter: a missing file is
+// a fresh install and may start a trial, while a file that exists but cannot
+// be used must not, because starting one overwrites it and a paid activation
+// is then unrecoverable.
 type LoadStatus int
 
 const (
@@ -68,6 +70,10 @@ const (
 	StatusUnreadable
 	// StatusMalformed means the bytes were read but did not decrypt or parse.
 	StatusMalformed
+	// StatusUnverified means the state parsed but nothing vouches for it: no
+	// signed token stands behind it, or it could not be written to disk. It
+	// is the status a forged state file gets, and it entitles nothing.
+	StatusUnverified
 )
 
 // String names the status for an operator-facing message.
@@ -81,6 +87,8 @@ func (s LoadStatus) String() string {
 		return "unreadable"
 	case StatusMalformed:
 		return "malformed"
+	case StatusUnverified:
+		return "unverified"
 	}
 	return "unknown"
 }
@@ -88,7 +96,8 @@ func (s LoadStatus) String() string {
 // Usable reports whether the state on disk can be acted on. An unusable state
 // entitles nothing beyond the free grant and must never be replaced by an
 // automatic trial: the operator holds a licence file this build cannot read,
-// and destroying it is not the product's call.
+// or one nothing vouches for — a key rotation looks exactly like a forgery
+// from here — and destroying it is not the product's call.
 func (s LoadStatus) Usable() bool {
 	return s == StatusLoaded || s == StatusMissing
 }
@@ -126,6 +135,10 @@ func NewManager(v *Verifier, policy ProductPolicy) (*Manager, error) {
 // the given directory. Exposed so tests can use a tmpdir without
 // poking at the user's real config.
 func NewManagerWithDir(v *Verifier, policy ProductPolicy, configDir string) (*Manager, error) {
+	if v == nil {
+		return nil, errors.New("a verifier is required to re-check persisted activation state")
+	}
+
 	fp, fpErr := GenerateFingerprint()
 	if fpErr != nil {
 		return nil, fmt.Errorf("failed to generate fingerprint: %w", fpErr)
@@ -190,14 +203,24 @@ func (m *Manager) IsActivated() bool {
 func (m *Manager) HasFeature(feature string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	if !m.isActivatedLocked() || m.state == nil {
+	if !m.isActivatedLocked() {
 		return false
 	}
 	return slices.Contains(m.state.Features, feature)
 }
 
+// stateTrustedLocked reports whether the state in memory may be acted on. The
+// state file is sealed with a key derived from the device fingerprint and a
+// salt compiled into the shipped binary, both of which any local process can
+// read, so the file is an attacker-controllable input. Nothing it says is an
+// entitlement until loadState has traced it back to a signature or to the
+// policy's own trial terms (#34).
+func (m *Manager) stateTrustedLocked() bool {
+	return m.state != nil && m.loadStatus == StatusLoaded
+}
+
 func (m *Manager) isActivatedLocked() bool {
-	if m.state == nil {
+	if !m.stateTrustedLocked() {
 		return false
 	}
 	if m.state.IsTrialMode {
@@ -220,10 +243,7 @@ func (m *Manager) IsTrialValid() bool {
 }
 
 func (m *Manager) isTrialValidLocked() bool {
-	if m.state == nil || !m.state.IsTrialMode {
-		return false
-	}
-	if m.state.TrialStartedAt.IsZero() {
+	if !m.stateTrustedLocked() || !m.state.IsTrialMode {
 		return false
 	}
 	trialEnd := m.state.TrialStartedAt.AddDate(0, 0, m.policy.TrialDays)
@@ -238,11 +258,8 @@ func (m *Manager) TrialDaysRemaining() int {
 }
 
 func (m *Manager) trialDaysRemainingLocked() int {
-	if m.state == nil || !m.state.IsTrialMode {
+	if !m.stateTrustedLocked() || !m.state.IsTrialMode {
 		return 0
-	}
-	if m.state.TrialStartedAt.IsZero() {
-		return m.policy.TrialDays
 	}
 	trialEnd := m.state.TrialStartedAt.AddDate(0, 0, m.policy.TrialDays)
 	remaining := int(time.Until(trialEnd).Hours() / hoursPerDay)
@@ -317,12 +334,14 @@ func (m *Manager) StartTrial() *ActivationResult {
 	}
 
 	if saveErr := m.saveState(); saveErr != nil {
+		m.loadStatus, m.loadErr = StatusUnverified, saveErr
 		return &ActivationResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to save trial state: %v", saveErr),
 			Tier:    tierInvalid,
 		}
 	}
+	m.loadStatus, m.loadErr = StatusLoaded, nil
 
 	return &ActivationResult{
 		Success:       true,
@@ -359,12 +378,14 @@ func (m *Manager) Activate(licenseKey string) *ActivationResult {
 	}
 
 	if saveErr := m.saveState(); saveErr != nil {
+		m.loadStatus, m.loadErr = StatusUnverified, saveErr
 		return &ActivationResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to save activation: %v", saveErr),
 			Tier:    tierInvalid,
 		}
 	}
+	m.loadStatus, m.loadErr = StatusLoaded, nil
 
 	return &ActivationResult{
 		Success:       true,
@@ -398,6 +419,7 @@ func (m *Manager) Deactivate() error {
 		return fmt.Errorf("failed to remove license file: %w", removeErr)
 	}
 	m.state = nil
+	m.loadStatus, m.loadErr = StatusMissing, nil
 	return nil
 }
 
@@ -405,7 +427,7 @@ func (m *Manager) Deactivate() error {
 func (m *Manager) CheckIn() *ActivationResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.state == nil {
+	if !m.isActivatedLocked() {
 		return &ActivationResult{
 			Success: false,
 			Message: "No active license to validate",
@@ -464,7 +486,57 @@ func (m *Manager) loadState() (LoadStatus, error) {
 	}
 
 	m.state = state
+	return m.bindStateToItsGrant(state)
+}
+
+// bindStateToItsGrant re-derives what a persisted state is allowed to grant
+// instead of believing what it claims. A paid activation is re-checked against
+// the Ed25519 signature that granted it, and its tier, features and expiry are
+// taken from that payload; a trial's tier and features come from the policy.
+// Anything left over is a forgery and is reported StatusUnverified with its
+// entitlements stripped, so no exported reader — GetState included — can hand
+// a caller a tier the signature never issued.
+//
+// The state itself is kept either way: telling an expired or unverifiable
+// licence from a fresh install is what stops StartTrial from writing over one
+// (#33).
+func (m *Manager) bindStateToItsGrant(state *ActivationState) (LoadStatus, error) {
+	if state.IsTrialMode {
+		// A trial is bounded by the policy window measured from its start, so
+		// a start date in the future would be a trial that never ends.
+		if state.TrialStartedAt.IsZero() || state.TrialStartedAt.After(time.Now()) {
+			return stripGrant(state, errors.New("trial state has no usable start time"))
+		}
+		features, _, ok := m.policy.FeaturesForTier(m.policy.TrialTier)
+		if !ok {
+			features = nil
+		}
+		state.Tier = m.policy.TrialTier
+		state.Features = features
+		return StatusLoaded, nil
+	}
+
+	// Authentic but expired stays StatusLoaded: it is a known file whose term
+	// has run out, isActivatedLocked already refuses it on ExpiresAt, and
+	// StartTrial owes its holder the "enter a current key" answer rather than
+	// a trial written over the licence.
+	info, verifyErr := m.verifier.verify(state.LicenseKey)
+	if verifyErr != nil {
+		return stripGrant(state, verifyErr)
+	}
+
+	state.Tier = info.Tier
+	state.Features = info.Features
+	state.ExpiresAt = info.ExpiresAt
 	return StatusLoaded, nil
+}
+
+// stripGrant removes the entitlements a state claimed but cannot justify,
+// keeping the token and timestamps that let the manager explain itself.
+func stripGrant(state *ActivationState, reason error) (LoadStatus, error) {
+	state.Tier = tierInvalid
+	state.Features = nil
+	return StatusUnverified, fmt.Errorf("license state is not backed by a valid license: %w", reason)
 }
 
 func (m *Manager) saveState() error {

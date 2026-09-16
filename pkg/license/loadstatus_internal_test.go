@@ -3,6 +3,10 @@
 package license
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -30,24 +34,53 @@ func internalTestPolicy() ProductPolicy {
 	}
 }
 
-// writeExpiredActivation lays down a real, decryptable state file for a paid
-// licence whose term has already run out. Activate cannot produce one: the
-// verifier rejects an expired token, so the only honest fixture is the state a
-// licence that was valid at activation leaves behind once its expiry passes.
-func writeExpiredActivation(t *testing.T, dir string) {
+// internalSignToken mirrors the keygen wire format so an in-package test can
+// mint a genuinely signed token. license_test.signToken is in the external
+// test package and cannot be reached from here.
+func internalSignToken(t *testing.T, priv ed25519.PrivateKey, tier int, exp int64) string {
 	t.Helper()
-	m, err := NewManagerWithDir(nil, internalTestPolicy(), dir)
+	payload := map[string]any{
+		"v":       1,
+		"product": "testprod",
+		"code":    "9001",
+		"serial":  "SERIAL-INTERNAL",
+		"tier":    tier,
+		"iat":     time.Now().Add(-400 * day).Unix(),
+	}
+	if exp > 0 {
+		payload["exp"] = exp
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	sig := ed25519.Sign(priv, b)
+	return "MSN1." + base64.RawURLEncoding.EncodeToString(b) +
+		"." + base64.RawURLEncoding.EncodeToString(sig)
+}
+
+func internalTestKeyPair(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
+	t.Helper()
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate test key: %v", err)
+	}
+	return pub, priv
+}
+
+// writeState lays down a real, decryptable state file. Activate cannot produce
+// the ones these tests need — an expired term, or a token that was never
+// signed — so building the struct and calling saveState is the only honest
+// route to them.
+func writeState(t *testing.T, dir string, state *ActivationState) {
+	t.Helper()
+	pub, _ := internalTestKeyPair(t)
+	m, err := NewManagerWithDir(NewVerifier(pub, internalTestPolicy()), internalTestPolicy(), dir)
 	if err != nil {
 		t.Fatalf("NewManagerWithDir: %v", err)
 	}
-	m.state = &ActivationState{
-		LicenseKey:  "MSN1.paid-token",
-		DeviceHash:  m.fingerprint.Hash(),
-		Tier:        2,
-		ActivatedAt: time.Now().Add(-400 * day),
-		ExpiresAt:   time.Now().Add(-1 * day),
-		Features:    []string{"feat_a"},
-	}
+	state.DeviceHash = m.fingerprint.Hash()
+	m.state = state
 	if saveErr := m.saveState(); saveErr != nil {
 		t.Fatalf("saveState: %v", saveErr)
 	}
@@ -62,7 +95,7 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		fixture       func(t *testing.T, dir string)
+		fixture       func(t *testing.T, dir string, priv ed25519.PrivateKey)
 		wantStatus    LoadStatus
 		wantUsable    bool
 		wantLoadErr   bool
@@ -71,7 +104,7 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 	}{
 		{
 			name:          "missing file is a fresh install",
-			fixture:       func(_ *testing.T, _ string) {},
+			fixture:       func(_ *testing.T, _ string, _ ed25519.PrivateKey) {},
 			wantStatus:    StatusMissing,
 			wantUsable:    true,
 			wantTrialOK:   true,
@@ -79,7 +112,7 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 		},
 		{
 			name: "unreadable file entitles nothing",
-			fixture: func(t *testing.T, dir string) {
+			fixture: func(t *testing.T, dir string, _ ed25519.PrivateKey) {
 				t.Helper()
 				if err := os.Mkdir(filepath.Join(dir, ".license"), 0o700); err != nil {
 					t.Fatalf("mkdir fixture: %v", err)
@@ -91,7 +124,7 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 		},
 		{
 			name: "malformed file entitles nothing",
-			fixture: func(t *testing.T, dir string) {
+			fixture: func(t *testing.T, dir string, _ ed25519.PrivateKey) {
 				t.Helper()
 				if err := os.WriteFile(filepath.Join(dir, ".license"), []byte("not encrypted"), 0o600); err != nil {
 					t.Fatalf("write fixture: %v", err)
@@ -102,11 +135,40 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 			wantLoadErr: true,
 		},
 		{
-			name:          "expired activation loads and stays expired",
-			fixture:       func(t *testing.T, dir string) { t.Helper(); writeExpiredActivation(t, dir) },
+			// A signed licence whose term has run out is an authentic file,
+			// not a forgery: it stays loaded so StartTrial owes its holder
+			// "enter a current key" rather than a trial written over it.
+			name: "expired activation loads and stays expired",
+			fixture: func(t *testing.T, dir string, priv ed25519.PrivateKey) {
+				t.Helper()
+				writeState(t, dir, &ActivationState{
+					LicenseKey:  internalSignToken(t, priv, 2, time.Now().Add(-1*day).Unix()),
+					Tier:        2,
+					ActivatedAt: time.Now().Add(-400 * day),
+					ExpiresAt:   time.Now().Add(-1 * day),
+					Features:    []string{"feat_a"},
+				})
+			},
 			wantStatus:    StatusLoaded,
 			wantUsable:    true,
 			wantActivated: false,
+		},
+		{
+			// Same shape, but the token was never signed by this fleet key:
+			// that is #34's forgery and it entitles nothing.
+			name: "state whose token is not signed entitles nothing",
+			fixture: func(t *testing.T, dir string, _ ed25519.PrivateKey) {
+				t.Helper()
+				writeState(t, dir, &ActivationState{
+					LicenseKey:  "MSN1.paid-token",
+					Tier:        2,
+					ActivatedAt: time.Now().Add(-1 * day),
+					Features:    []string{"feat_a"},
+				})
+			},
+			wantStatus:  StatusUnverified,
+			wantUsable:  false,
+			wantLoadErr: true,
 		},
 	}
 
@@ -114,9 +176,10 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			dir := t.TempDir()
-			tc.fixture(t, dir)
+			pub, priv := internalTestKeyPair(t)
+			tc.fixture(t, dir, priv)
 
-			m, err := NewManagerWithDir(nil, internalTestPolicy(), dir)
+			m, err := NewManagerWithDir(NewVerifier(pub, internalTestPolicy()), internalTestPolicy(), dir)
 			if err != nil {
 				t.Fatalf("NewManagerWithDir: %v", err)
 			}
@@ -170,6 +233,7 @@ func TestLoadStatusString(t *testing.T) {
 		StatusMissing:    "missing",
 		StatusUnreadable: "unreadable",
 		StatusMalformed:  "malformed",
+		StatusUnverified: "unverified",
 		LoadStatus(99):   "unknown",
 	}
 	for status, name := range want {
