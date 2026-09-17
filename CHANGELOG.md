@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.9...v0.5.10) (2026-09-17)
+
+
+### Features
+
+* **instance:** single-instance lock keyed on the data directory ([#48](https://github.com/MustardSeedNetworks/foundation/issues/48)) ([0886b50](https://github.com/MustardSeedNetworks/foundation/commit/0886b50e764fa9cfd1415f5f9c2e55bc05a906da)), closes [#46](https://github.com/MustardSeedNetworks/foundation/issues/46)
+
 ## [0.5.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.8...v0.5.9) (2026-09-16)
 
 
