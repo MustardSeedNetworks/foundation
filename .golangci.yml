@@ -30,3 +30,16 @@ linters:
     presets:
       - std-error-handling
       - common-false-positives
+    rules:
+      # G204 and G702 flag exec.Command with a non-constant argument. pkg/instance
+      # proves its lock across processes the way the standard library does --
+      # the test binary re-executes itself via os.Args[0] and the child takes
+      # the lock -- and there is no constant path to a test binary, so the
+      # pattern cannot be written without tripping this rule. An in-process
+      # test would not show that the PID reported belongs to another process,
+      # which is the whole claim. Scoped to test files: a G204 in production
+      # code is still a finding.
+      - path: _test\.go
+        linters:
+          - gosec
+        text: G204|G702

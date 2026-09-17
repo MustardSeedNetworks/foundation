@@ -101,6 +101,22 @@ jobs:
           GOARCH: amd64
         run: go test -c -o /dev/null ./pkg/corewlan
 
+  # pkg/instance's LockFileEx path is behind the _windows.go filename suffix,
+  # so the Linux and macOS jobs above only ever build the flock implementation
+  # — a broken byte-range lock would still show a green check. Same reasoning
+  # as build-test-darwin above, for the other half of the single-instance lock.
+  build-test-windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-go
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test -race ./...
+
   govulncheck:
     name: govulncheck
     runs-on: ubuntu-latest
@@ -230,6 +246,7 @@ jobs:
     needs:
       - build-test
       - build-test-darwin
+      - build-test-windows
       - govulncheck
       - lint
       - security

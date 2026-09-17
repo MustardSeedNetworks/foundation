@@ -13,6 +13,7 @@ standalone as open-core; Stem and NIAC (proprietary, MSN-owned) import it freely
 |--------|-----------|
 | `github.com/MustardSeedNetworks/foundation/pkg/license` | Offline Ed25519 license validation, device fingerprint/binding, trial + encrypted on-disk activation state. Product-agnostic core; per-product policy injected. |
 | `github.com/MustardSeedNetworks/foundation/pkg/csrf` | Per-session CSRF token manager, keyed on `sha256(bearer)`, with a `Protect` middleware. The canonical CSRF implementation for the fleet. |
+| `github.com/MustardSeedNetworks/foundation/pkg/instance` | Single-instance lock keyed on a daemon's data directory (`flock` on unix, `LockFileEx` on Windows). A second daemon on the same data directory is refused by the holder's PID and port instead of starting beside it on a fallback port. |
 | `github.com/MustardSeedNetworks/foundation/pkg/corewlan` | macOS Wi-Fi via Apple's CoreWLAN framework (cgo + Objective-C): scan, associated network, interface list, saved networks, associate/disassociate, radio power. Replaces the `airport` CLI, removed in macOS 26. **darwin-only** — a `!darwin` stub returns `ErrUnsupported`. |
 
 ## The product-policy pattern (license)
