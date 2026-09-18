@@ -8,3 +8,4 @@ Accepted · Amended · Superseded.
 | --- | --- | --- |
 | [0001](0001-one-shared-license-and-csrf-core.md) | One shared licence and CSRF core for the fleet | Accepted |
 | [0002](0002-single-instance-lock-on-the-data-directory.md) | Single-instance lock keyed on the data directory | Accepted |
+| [0003](0003-supervised-workers-with-a-per-worker-restart-policy.md) | Supervised workers with a per-worker restart policy | Accepted |
