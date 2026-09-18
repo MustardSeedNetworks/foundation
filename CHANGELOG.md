@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.11](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.10...v0.5.11) (2026-09-18)
+
+
+### Features
+
+* **supervise:** named workers with panic recovery and ordered stop ([#50](https://github.com/MustardSeedNetworks/foundation/issues/50)) ([9ff504c](https://github.com/MustardSeedNetworks/foundation/commit/9ff504cc2c664d9fd2c7c9c844a8f4f5e89a0e5e)), closes [#47](https://github.com/MustardSeedNetworks/foundation/issues/47)
+
 ## [0.5.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.9...v0.5.10) (2026-09-17)
 
 
