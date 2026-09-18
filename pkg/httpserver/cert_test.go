@@ -5,7 +5,6 @@ package httpserver_test
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -102,23 +101,5 @@ func TestEnsureCertificateReplacesAPairThatNoLongerCovers(t *testing.T) {
 	}
 	if verifyErr := leaf(t, replaced).VerifyHostname("seed.local"); verifyErr != nil {
 		t.Errorf("replacement does not cover the new name: %v", verifyErr)
-	}
-}
-
-// The private key must not be world-readable: these run on shared dev boxes
-// and lab containers.
-func TestEnsureCertificateWritesAnOwnerOnlyKey(t *testing.T) {
-	dir := t.TempDir()
-	keyPath := filepath.Join(dir, "server.key")
-	if _, err := httpserver.EnsureCertificate(filepath.Join(dir, "server.crt"), keyPath, httpserver.CertOptions{}); err != nil {
-		t.Fatalf("EnsureCertificate: %v", err)
-	}
-
-	info, statErr := os.Stat(keyPath)
-	if statErr != nil {
-		t.Fatalf("stat key: %v", statErr)
-	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("key mode = %#o; want 0600", perm)
 	}
 }

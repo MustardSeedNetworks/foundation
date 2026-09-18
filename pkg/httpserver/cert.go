@@ -25,7 +25,9 @@ import (
 const certValidity = 365 * 24 * time.Hour
 
 // certFileMode and keyFileMode are the on-disk permissions. The private key is
-// owner-only: a world-readable key in a shared dev box is a real leak.
+// owner-only: a world-readable key in a shared dev box is a real leak. Windows
+// has no mode bits, so keyFileMode is the unix half of that promise and
+// writePrivateKey carries the other half; see cert_windows.go.
 const (
 	certFileMode os.FileMode = 0o644
 	keyFileMode  os.FileMode = 0o600
@@ -84,8 +86,8 @@ func EnsureCertificate(certPath, keyPath string, opts CertOptions) (tls.Certific
 	if writeErr := os.WriteFile(certPath, certPEM, certFileMode); writeErr != nil {
 		return tls.Certificate{}, fmt.Errorf("write certificate %s: %w", certPath, writeErr)
 	}
-	if writeErr := os.WriteFile(keyPath, keyPEM, keyFileMode); writeErr != nil {
-		return tls.Certificate{}, fmt.Errorf("write private key %s: %w", keyPath, writeErr)
+	if writeErr := writePrivateKey(keyPath, keyPEM); writeErr != nil {
+		return tls.Certificate{}, writeErr
 	}
 
 	return tls.X509KeyPair(certPEM, keyPEM)
