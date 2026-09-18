@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.12](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.11...v0.5.12) (2026-09-18)
+
+
+### Features
+
+* **httpserver:** one TLS listener, port fallback and same-port plaintext redirect ([#52](https://github.com/MustardSeedNetworks/foundation/issues/52)) ([f15d5dd](https://github.com/MustardSeedNetworks/foundation/commit/f15d5dd7cb9a7cd00d01e5995f72e795a896ccad))
+
 ## [0.5.11](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.10...v0.5.11) (2026-09-18)
 
 
