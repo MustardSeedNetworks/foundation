@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.19](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.18...v0.5.19) (2026-09-23)
+
+
+### Documentation
+
+* README and ADR-0001 stop saying NIAC imports pkg/license ([#67](https://github.com/MustardSeedNetworks/foundation/issues/67)) ([c18ddb1](https://github.com/MustardSeedNetworks/foundation/commit/c18ddb1b75a67bf21c84e95451843d3e1906b52d)), closes [#35](https://github.com/MustardSeedNetworks/foundation/issues/35)
+
 ## [0.5.18](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.17...v0.5.18) (2026-09-23)
 
 
