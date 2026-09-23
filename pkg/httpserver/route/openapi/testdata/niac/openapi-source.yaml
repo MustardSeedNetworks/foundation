@@ -1,0 +1,247 @@
+# openapi-source.yaml — the hand-written half of docs/openapi.yaml.
+#
+# docs/openapi.yaml is GENERATED (`make openapi`) and must not be edited.
+# Its `paths` block comes from the capability registry in internal/api/route.go,
+# so every registered route is documented with the policy it actually carries
+# (auth, CSRF, admin scope, rate limit, body cap) and no route can be missing.
+# The error schema comes from the Go type api.ErrorResponse.
+#
+# What the registry cannot know — prose, path parameter names, request and
+# response bodies — lives here:
+#
+#   preamble   verbatim top-level keys: info, servers, tags, components…
+#   operations keyed "<METHOD> <path>", merged onto the generated operation.
+#              `pathTemplate` renames a Go 1.22 prefix route (a path ending in
+#              "/") to its real shape, e.g. /api/v1/sessions/{id}.
+#
+# An operations key naming a path or method the registry does not serve fails
+# the generator, so this file cannot outlive the routes it describes.
+
+preamble:
+  openapi: 3.0.3
+  info:
+    title: NIAC-Go API
+    description: |
+      Network In A Can — Go Edition REST API.
+
+      Programmatic access to network simulation sessions, device
+      configuration, the content library, SNMP walk tooling and PCAP
+      capture/replay.
+
+      ## Authentication
+      Every route below `/api/v1` and `/metrics` requires a bearer token
+      (`NIAC_API_TOKEN` or a token file). `/__version` and `/__capabilities`
+      are deliberately unauthenticated deployment introspection. The installed
+      loopback-only daemon additionally permits tokenless local access, which
+      OpenAPI 3.0 cannot express per server and so is documented here rather
+      than in a security requirement.
+
+      ## CSRF protection
+      Operations marked with the `CsrfToken` security scheme need a token from
+      `GET /api/v1/csrf-token` in the `X-CSRF-Token` header. Tokens are
+      per-session, keyed by the bearer that fetched them.
+
+      ## Rate limiting
+      Routes marked rate limited answer 429 once their per-IP budget is spent.
+      Budgets differ by class (write, walk, upload, file listing).
+    version: v1
+    contact:
+      name: Mustard Seed Networks
+      url: https://github.com/MustardSeedNetworks/niac-go
+    license:
+      name: Business Source License 1.1
+      url: https://github.com/MustardSeedNetworks/niac-go/blob/main/LICENSE
+  servers:
+    - url: https://localhost:8445
+      description: Installed loopback daemon (paths are absolute from the origin)
+    - url: https://niac.example.com
+      description: Example remote deployment
+  security:
+    - BearerAuth: []
+  components:
+    securitySchemes:
+      BearerAuth:
+        type: http
+        scheme: bearer
+        description: Bearer token from NIAC_API_TOKEN or the configured token file.
+      CsrfToken:
+        type: apiKey
+        in: header
+        name: X-CSRF-Token
+        description: Per-session CSRF token from GET /api/v1/csrf-token.
+
+operations:
+  GET /api/v1/csrf-token:
+    summary: Issue a CSRF token
+    description: >
+      Returns a CSRF token bound to the calling bearer. Required by every
+      state-changing operation that declares the CsrfToken scheme.
+    tags: [System]
+  GET /api/v1/stats:
+    summary: Simulation counters
+    tags: [System]
+  GET /api/v1/version:
+    summary: API version
+    description: Version of the API surface. Build metadata lives at /__version.
+    tags: [System]
+  GET /api/v1/devices:
+    summary: List devices in the selected session
+    tags: [Devices]
+  GET /api/v1/devices/:
+    summary: Read one device's live state
+    pathTemplate: /api/v1/devices/{name}
+    tags: [Devices]
+  POST /api/v1/devices/:
+    summary: Act on one device (state changes)
+    pathTemplate: /api/v1/devices/{name}
+    tags: [Devices]
+  GET /api/v1/config:
+    summary: Read the active configuration as YAML
+    tags: [Configuration]
+  PUT /api/v1/config:
+    summary: Replace the active configuration
+    tags: [Configuration]
+  PATCH /api/v1/config:
+    summary: Patch the active configuration
+    tags: [Configuration]
+  POST /api/v1/config:
+    summary: Load a configuration
+    tags: [Configuration]
+  GET /api/v1/config/schema:
+    summary: JSON Schema for the YAML configuration
+    description: The same document as docs/schemas/niac.schema.json.
+    tags: [Configuration]
+  POST /api/v1/config/import:
+    summary: Replace the whole topology (admin scope)
+    tags: [Configuration]
+  GET /api/v1/sessions:
+    summary: List simulation sessions
+    tags: [Sessions]
+  GET /api/v1/sessions/:
+    summary: Read one session
+    pathTemplate: /api/v1/sessions/{id}
+    tags: [Sessions]
+  POST /api/v1/sessions/:
+    summary: Act on one session
+    pathTemplate: /api/v1/sessions/{id}
+    tags: [Sessions]
+  PUT /api/v1/sessions/:
+    summary: Update one session
+    pathTemplate: /api/v1/sessions/{id}
+    tags: [Sessions]
+  DELETE /api/v1/sessions/:
+    summary: Stop and remove one session
+    pathTemplate: /api/v1/sessions/{id}
+    tags: [Sessions]
+  GET /api/v1/attachment-policies:
+    summary: Physical attachments the operator approved
+    description: >
+      The daemon's --attachment-policy set: which host interface may be bound,
+      in which mode, and on which VLANs. A start outside this set is refused
+      with attachment_policy_denied, so a client offers a binding from here
+      rather than guessing one.
+    tags: [Simulation]
+  POST /api/v1/simulation/attachments:
+    summary: Logical attachments a configuration declares
+    description: >
+      Names the attachments in the prepared scenario, identified the same way a
+      start identifies it. Changes no runtime state. `routed` is false for a
+      flat scenario, which binds no attachment at all.
+    tags: [Simulation]
+  POST /api/v1/simulation/preflight:
+    summary: Validate a simulation request without starting it
+    description: >
+      Runs the fabric compile and returns every diagnostic. A start that would
+      fail returns the same codes here first.
+    tags: [Simulation]
+  POST /api/v1/simulation:
+    summary: Start a simulation
+    tags: [Simulation]
+  GET /api/v1/simulation:
+    summary: Simulation status
+    tags: [Simulation]
+  PUT /api/v1/simulation:
+    summary: Select the active simulation
+    tags: [Simulation]
+  DELETE /api/v1/simulation:
+    summary: Stop the simulation
+    tags: [Simulation]
+  GET /api/v1/topology:
+    summary: Topology graph for the selected session
+    tags: [Topology]
+  GET /api/v1/topology/export:
+    summary: Export the topology
+    tags: [Topology]
+  GET /api/v1/replay:
+    summary: PCAP replay status
+    tags: [Replay]
+  POST /api/v1/replay:
+    summary: Start a PCAP replay
+    tags: [Replay]
+  DELETE /api/v1/replay:
+    summary: Stop the PCAP replay
+    tags: [Replay]
+  POST /api/v1/pcap/upload:
+    summary: Upload a capture for analysis
+    tags: [Capture]
+  GET /api/v1/pcap/:
+    summary: Read one PCAP analysis
+    pathTemplate: /api/v1/pcap/{id}
+    tags: [Capture]
+  GET /api/v1/capture:
+    summary: Capture status
+    tags: [Capture]
+  POST /api/v1/capture:
+    summary: Start a standalone capture
+    tags: [Capture]
+  DELETE /api/v1/capture:
+    summary: Stop the standalone capture
+    tags: [Capture]
+  GET /api/v1/library/drafts/:
+    pathTemplate: /api/v1/library/drafts/{id}
+    tags: [Library]
+  PUT /api/v1/library/drafts/:
+    pathTemplate: /api/v1/library/drafts/{id}
+    tags: [Library]
+  PATCH /api/v1/library/drafts/:
+    pathTemplate: /api/v1/library/drafts/{id}
+    tags: [Library]
+  DELETE /api/v1/library/drafts/:
+    pathTemplate: /api/v1/library/drafts/{id}
+    tags: [Library]
+  GET /api/v1/library/networks/:
+    pathTemplate: /api/v1/library/networks/{name}
+    tags: [Library]
+  DELETE /api/v1/library/networks/:
+    pathTemplate: /api/v1/library/networks/{name}
+    tags: [Library]
+  GET /api/v1/templates/:
+    pathTemplate: /api/v1/templates/{name}
+    tags: [Templates]
+  GET /api/v1/device-schemas/:
+    pathTemplate: /api/v1/device-schemas/{name}
+    tags: [Devices]
+  GET /api/v1/config/devices/:
+    pathTemplate: /api/v1/config/devices/{name}
+    tags: [Configuration]
+  POST /api/v1/config/devices/:
+    pathTemplate: /api/v1/config/devices/{name}
+    tags: [Configuration]
+  PUT /api/v1/config/devices/:
+    pathTemplate: /api/v1/config/devices/{name}
+    tags: [Configuration]
+  DELETE /api/v1/config/devices/:
+    pathTemplate: /api/v1/config/devices/{name}
+    tags: [Configuration]
+  GET /api/v1/stream/packets:
+    summary: Server-sent packet stream
+    tags: [Streams]
+  GET /api/v1/stream/logs:
+    summary: Server-sent log stream
+    tags: [Streams]
+  GET /api/v1/stream/status:
+    summary: Server-sent status stream
+    tags: [Streams]
+  GET /metrics:
+    summary: Prometheus metrics
+    tags: [System]

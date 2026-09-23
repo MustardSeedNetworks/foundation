@@ -1,0 +1,2 @@
+# Byte-for-byte golden fixtures: a CRLF checkout on Windows would change them.
+pkg/httpserver/route/openapi/testdata/** -text
