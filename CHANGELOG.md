@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.14](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.13...v0.5.14) (2026-09-23)
+
+
+### Features
+
+* **passkey:** bind single-use browser ceremonies ([#56](https://github.com/MustardSeedNetworks/foundation/issues/56)) ([3093c8a](https://github.com/MustardSeedNetworks/foundation/commit/3093c8aa854430d67964877e92a4b0a3da90cd9e))
+
 ## [0.5.13](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.12...v0.5.13) (2026-09-23)
 
 
