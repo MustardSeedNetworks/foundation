@@ -5,6 +5,7 @@ package passkey
 import (
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -23,6 +24,7 @@ type Session struct {
 	data         webauthn.SessionData
 	issuer       *Service
 	registration bool
+	admitted     *atomic.Bool
 }
 
 // ErrInvalidSession rejects expired, foreign, wrong-purpose and zero sessions.
@@ -35,7 +37,7 @@ func (s *Service) BeginRegistration(user webauthn.User) (*protocol.CredentialCre
 	if err != nil {
 		return nil, nil, err
 	}
-	return options, &Session{data: *data, issuer: s, registration: true}, nil
+	return options, &Session{data: *data, issuer: s, registration: true, admitted: new(atomic.Bool)}, nil
 }
 
 // FinishRegistration validates the authenticator response. The adapter must
@@ -53,7 +55,7 @@ func (s *Service) BeginLogin() (*protocol.CredentialAssertion, *Session, error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	return options, &Session{data: *data, issuer: s}, nil
+	return options, &Session{data: *data, issuer: s, admitted: new(atomic.Bool)}, nil
 }
 
 // FinishLogin returns the verified account and full updated credential. Resolve
