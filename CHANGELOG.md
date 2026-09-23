@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.17](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.16...v0.5.17) (2026-09-23)
+
+
+### Features
+
+* **passkey:** preserve complete credential records ([#62](https://github.com/MustardSeedNetworks/foundation/issues/62)) ([7e27aa3](https://github.com/MustardSeedNetworks/foundation/commit/7e27aa3773df72fa63cad9b021c5c32504d22dbc))
+
 ## [0.5.16](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.15...v0.5.16) (2026-09-23)
 
 
