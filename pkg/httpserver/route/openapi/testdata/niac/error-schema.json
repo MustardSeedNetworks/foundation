@@ -1,0 +1,60 @@
+{
+  "properties": {
+    "details": {
+      "items": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "column": {
+            "type": "integer"
+          },
+          "field": {
+            "type": "string"
+          },
+          "issue": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issue"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "error": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "error",
+    "message",
+    "timestamp",
+    "path",
+    "method"
+  ],
+  "type": "object"
+}
