@@ -526,29 +526,45 @@ func TestRequestIDIsServerAssigned(t *testing.T) {
 	}
 }
 
-// TestAccessLogOmitsTheQuery: the access line names method, path, status and
-// request ID, and never the query string, which can carry a token.
-func TestAccessLogOmitsTheQuery(t *testing.T) {
-	var logs bytes.Buffer
-	g := route.New(route.Config{
-		Error: jsonError, MaxBodyBytes: defaultBody,
-		Logger: slog.New(slog.NewJSONHandler(&logs, nil)),
-	})
-	g.Register(route.Route{Path: "/teapot", Handler: func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusTeapot)
-	}})
+// TestAccessLogNamesThePatternNotThePath: the access line carries the matched
+// route pattern, never the request's own path or query. Those are user input
+// (a token in a query string, a forged log line in an encoded path), and the
+// product's slog handler may not escape them.
+func TestAccessLogNamesThePatternNotThePath(t *testing.T) {
+	tests := []struct {
+		target, wantPattern string
+		wantStatus          int
+	}{
+		{"/teapot?token=secret", "/teapot", http.StatusTeapot},
+		{"/files/evil%0Aforged=1", "/files/", http.StatusTeapot},
+		{"/nowhere/evil", "", http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.target, func(t *testing.T) {
+			var logs bytes.Buffer
+			g := route.New(route.Config{
+				Error: jsonError, MaxBodyBytes: defaultBody,
+				Logger: slog.New(slog.NewJSONHandler(&logs, nil)),
+			})
+			teapot := func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) }
+			g.Register(route.Route{Path: "/teapot", Handler: teapot})
+			g.Register(route.Route{Path: "/files/", Handler: teapot})
 
-	rec := serve(g.Handler(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/teapot?token=secret", nil))
-	var entry map[string]any
-	if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
-		t.Fatalf("access log %q: %v", logs.String(), err)
-	}
-	if entry["method"] != "GET" || entry["path"] != "/teapot" || entry["status"] != float64(http.StatusTeapot) ||
-		entry["request_id"] != rec.Header().Get(route.RequestIDHeader) {
-		t.Errorf("access log = %v", entry)
-	}
-	if strings.Contains(logs.String(), "secret") {
-		t.Errorf("access log leaked the query: %s", logs.String())
+			rec := serve(g.Handler(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.target, nil))
+			var entry map[string]any
+			if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
+				t.Fatalf("access log %q: %v", logs.String(), err)
+			}
+			if entry["method"] != "GET" || entry["pattern"] != tt.wantPattern ||
+				entry["status"] != float64(tt.wantStatus) || entry["request_id"] != rec.Header().Get(route.RequestIDHeader) {
+				t.Errorf("access log = %v, want pattern %q status %d", entry, tt.wantPattern, tt.wantStatus)
+			}
+			for _, leaked := range []string{"secret", "evil", "forged"} {
+				if strings.Contains(logs.String(), leaked) {
+					t.Errorf("access log carries request input %q: %s", leaked, logs.String())
+				}
+			}
+		})
 	}
 }
 

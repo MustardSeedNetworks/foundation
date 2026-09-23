@@ -40,8 +40,12 @@ func withRequestID(next http.Handler) http.Handler {
 	})
 }
 
-// logRequests writes one line per request once it completes. The query string
-// is left out: it can carry tokens.
+// logRequests writes one line per request once it completes. It names the
+// ServeMux pattern the request matched ("" when none did), never the request's
+// own path or query: those are user input — a token in a query string, a
+// forged line in an encoded path — and the product's slog handler may not
+// escape them. The mux records the pattern on this same *http.Request, so it
+// is readable once the handler returns.
 func logRequests(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -49,7 +53,7 @@ func logRequests(logger *slog.Logger, next http.Handler) http.Handler {
 		next.ServeHTTP(tw, r)
 		logger.InfoContext(r.Context(), "http request",
 			"method", r.Method,
-			"path", r.URL.Path,
+			"pattern", r.Pattern,
 			"status", tw.statusOrOK(),
 			"duration_ms", time.Since(start).Milliseconds(),
 			"request_id", RequestID(r.Context()),

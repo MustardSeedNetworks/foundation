@@ -53,8 +53,10 @@ assumed to do.
 server-assigned request ID, one access-log line and panic recovery around the
 whole mux, so an unrouted request and the SPA fallback get them too. A
 client-supplied `X-Request-ID` is replaced: trusting it would let a caller
-forge the ID that correlates log lines. The access line omits the query
-string, which can carry a token. A recovered panic is one error line with the
+forge the ID that correlates log lines. The access line names the matched
+ServeMux pattern and never the request's path or query. Those are user input:
+a token in a query string, or a forged line in an encoded path. A product's
+slog handler may not escape them. A recovered panic is one error line with the
 request ID, and the stack goes to debug, as in `pkg/supervise` (ADR 0003).
 `http.ErrAbortHandler` is re-raised.
 
