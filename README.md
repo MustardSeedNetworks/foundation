@@ -6,6 +6,8 @@ three — so a fix to license validation or CSRF lands in **one place**, not thr
 
 Source-available under **BUSL-1.1** (same as Seed) so Seed still builds
 standalone as open-core; Stem and NIAC (proprietary, MSN-owned) import it freely.
+Seed and Stem consume `pkg/license`; NIAC has no runtime tier and uses
+`pkg/csrf` only.
 
 ## Packages
 
@@ -25,10 +27,10 @@ entitlements* differ. Those are injected, never hardcoded:
 
 ```go
 policy := license.ProductPolicy{
-    ProductName:     "niac",
-    FeaturesForTier: niacFeaturesForTier, // wire-tier int -> (features, expectedCode, ok)
-    EncryptionSalt:  "MSN-NIAC-SIM-2026-LICENSE",
-    ConfigSubdir:    "niac",
+    ProductName:     "stem",
+    FeaturesForTier: stemFeaturesForTier, // wire-tier int -> (features, expectedCode, ok)
+    EncryptionSalt:  "MSN-STEM-2026-LICENSE",
+    ConfigSubdir:    "stem",
     LicenseFileName: ".license",
     // TrialDays, TrialTier, DefaultMaxDevices...
 }
