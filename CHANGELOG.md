@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.13](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.12...v0.5.13) (2026-09-23)
+
+
+### Features
+
+* **passkey:** enforce shared human sign-in policy ([#54](https://github.com/MustardSeedNetworks/foundation/issues/54)) ([d80f00d](https://github.com/MustardSeedNetworks/foundation/commit/d80f00d6e7652f12d3a5f988ec8a1d2c1fa5ab3b))
+
 ## [0.5.12](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.11...v0.5.12) (2026-09-18)
 
 
