@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.18](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.17...v0.5.18) (2026-09-23)
+
+
+### Continuous Integration
+
+* gate foundation on the fleet license check ([#65](https://github.com/MustardSeedNetworks/foundation/issues/65)) ([d9ba874](https://github.com/MustardSeedNetworks/foundation/commit/d9ba87434d87cf7fcad828d2de411266fff7c131))
+
 ## [0.5.17](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.16...v0.5.17) (2026-09-23)
 
 
