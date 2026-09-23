@@ -3,11 +3,13 @@
 package route_test
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -427,9 +429,9 @@ func TestRecoverAnswersInTheProductEnvelope(t *testing.T) {
 	var logs bytes.Buffer
 	g := route.New(route.Config{
 		Error: jsonError, MaxBodyBytes: defaultBody,
-		Logger: slog.New(slog.NewJSONHandler(&logs, nil)),
+		Logger: slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
 	})
-	g.Register(route.Route{Path: "/boom", Handler: func(http.ResponseWriter, *http.Request) { panic("kaboom") }})
+	g.Register(route.Route{Path: "/boom", Handler: func(http.ResponseWriter, *http.Request) { panic(errors.New("kaboom")) }})
 
 	rec := serve(g.Handler(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/boom", nil))
 	if rec.Code != http.StatusInternalServerError {
@@ -440,7 +442,7 @@ func TestRecoverAnswersInTheProductEnvelope(t *testing.T) {
 		t.Errorf("body = %s, want the product envelope", rec.Body)
 	}
 	id := rec.Header().Get(route.RequestIDHeader)
-	var panicLine, accessLine map[string]any
+	var panicLine, stackLine, accessLine map[string]any
 	for line := range strings.SplitSeq(strings.TrimSpace(logs.String()), "\n") {
 		var entry map[string]any
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
@@ -449,13 +451,21 @@ func TestRecoverAnswersInTheProductEnvelope(t *testing.T) {
 		switch entry["msg"] {
 		case "panic recovered":
 			panicLine = entry
+		case "panic stack":
+			stackLine = entry
 		case "http request":
 			accessLine = entry
 		}
 	}
-	if panicLine == nil || panicLine["panic"] != "kaboom" || panicLine["request_id"] != id ||
-		!strings.Contains(panicLine["stack"].(string), "route_test.go") {
-		t.Errorf("panic log = %v, want the value, the request ID %q and a stack naming the handler", panicLine, id)
+	if panicLine == nil || panicLine["panic"] != "kaboom" || panicLine["request_id"] != id || panicLine["level"] != "ERROR" {
+		t.Errorf("panic log = %v, want one error line with the value and request ID %q", panicLine, id)
+	}
+	if _, inline := panicLine["stack"]; inline {
+		t.Error("the stack is on the operator's error line; it belongs at debug")
+	}
+	stack, _ := stackLine["stack"].(string)
+	if stackLine["level"] != "DEBUG" || stackLine["request_id"] != id || !strings.Contains(stack, "route_test.go") {
+		t.Errorf("stack log = %v, want a debug line naming the handler", stackLine)
 	}
 	if accessLine == nil || accessLine["status"] != float64(http.StatusInternalServerError) {
 		t.Errorf("access log = %v, want status 500", accessLine)
@@ -571,5 +581,66 @@ func TestUnroutedRequestsPassTheGlobalChain(t *testing.T) {
 	rec := serve(g.Handler(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/nowhere", nil))
 	if rec.Code != http.StatusNotFound || rec.Header().Get(route.RequestIDHeader) == "" {
 		t.Errorf("status %d, request ID %q: want 404 with an ID", rec.Code, rec.Header().Get(route.RequestIDHeader))
+	}
+}
+
+// hijacker is a ResponseWriter that can hand over its connection, as net/http's
+// own does for a WebSocket upgrade.
+type hijacker struct {
+	*httptest.ResponseRecorder
+	conn net.Conn
+}
+
+func (h hijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return h.conn, bufio.NewReadWriter(bufio.NewReader(h.conn), bufio.NewWriter(h.conn)), nil
+}
+
+// TestAccessLogStatus: the logged status is the final one the client saw — not
+// an informational 1xx, and 101 for a connection handed to a WebSocket.
+func TestAccessLogStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		want    int
+	}{
+		{"early hints then OK", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusEarlyHints)
+			w.WriteHeader(http.StatusAccepted)
+		}, http.StatusAccepted},
+		{"hijacked", func(w http.ResponseWriter, _ *http.Request) {
+			hj, isHijacker := w.(http.Hijacker)
+			if !isHijacker {
+				t.Error("the tracking writer hid http.Hijacker")
+				return
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			_ = conn.Close()
+		}, http.StatusSwitchingProtocols},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			g := route.New(route.Config{
+				Error: jsonError, MaxBodyBytes: defaultBody,
+				Logger: slog.New(slog.NewJSONHandler(&logs, nil)),
+			})
+			g.Register(route.Route{Path: "/s", Handler: tt.handler})
+			server, client := net.Pipe()
+			t.Cleanup(func() { _ = client.Close() })
+			g.Handler().ServeHTTP(hijacker{httptest.NewRecorder(), server},
+				httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/s", nil))
+
+			var entry map[string]any
+			if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
+				t.Fatalf("access log %q: %v", logs.String(), err)
+			}
+			if entry["status"] != float64(tt.want) {
+				t.Errorf("logged status = %v, want %d", entry["status"], tt.want)
+			}
+		})
 	}
 }

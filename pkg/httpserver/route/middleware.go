@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -71,11 +72,12 @@ func recoverPanics(logger *slog.Logger, writeErr ErrorFunc, next http.Handler) h
 			if err, ok := v.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 				panic(v)
 			}
-			logger.ErrorContext(r.Context(), "panic recovered",
-				"panic", v,
-				"stack", string(debug.Stack()),
-				"request_id", RequestID(r.Context()),
-			)
+			// One line for the operator; the stack is a debug field, as in
+			// pkg/supervise. Sprint, so the line does not depend on how the
+			// product's handler renders a non-string panic value.
+			id := RequestID(r.Context())
+			logger.ErrorContext(r.Context(), "panic recovered", "panic", fmt.Sprint(v), "request_id", id)
+			logger.DebugContext(r.Context(), "panic stack", "stack", string(debug.Stack()), "request_id", id)
 			// Once the status line is out, a 500 cannot replace it.
 			if tw.status == 0 {
 				writeErr(tw, r, http.StatusInternalServerError, "internal_server_error",

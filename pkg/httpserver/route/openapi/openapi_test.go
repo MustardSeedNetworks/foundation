@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/MustardSeedNetworks/foundation/pkg/httpserver/route"
 	"github.com/MustardSeedNetworks/foundation/pkg/httpserver/route/openapi"
@@ -60,5 +63,150 @@ func TestGenerateReproducesNiac(t *testing.T) {
 			}
 		}
 		t.Fatalf("output length differs: got %d lines, want %d", len(gotLines), len(wantLines))
+	}
+}
+
+const minimalSource = "preamble:\n  openapi: 3.0.3\n"
+
+func generate(t *testing.T, source string, routes []route.Policy) (map[string]any, error) {
+	t.Helper()
+	out, err := openapi.Generate([]byte(source), routes, openapi.Options{
+		Header:      "# test\n",
+		ErrorSchema: map[string]any{"type": "object"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var doc map[string]any
+	if err := yaml.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("generated document is not YAML: %v", err)
+	}
+	return doc, nil
+}
+
+func operationAt(t *testing.T, doc map[string]any, path, method string) map[string]any {
+	t.Helper()
+	item, _ := doc["paths"].(map[string]any)[path].(map[string]any)
+	op, found := item[method].(map[string]any)
+	if !found {
+		t.Fatalf("%s %s not documented; paths: %v", method, path, doc["paths"])
+	}
+	return op
+}
+
+// TestOperationPolicy checks the policy half of an operation for route shapes
+// niac's golden does not contain: an unauthenticated pre-session route and a
+// scope other than admin.
+func TestOperationPolicy(t *testing.T) {
+	doc, err := generate(t, minimalSource, []route.Policy{
+		{Path: "/api/v1/auth/login", Methods: []string{"POST"}, MaxBodyBytes: 4096, RateLimited: true},
+		{Path: "/api/v1/users", Methods: []string{"GET", "POST"}, MaxBodyBytes: 4096, Auth: true, Scope: "operator"},
+		{Path: "/api/v1/jobs", Methods: []string{"POST"}, MaxBodyBytes: 4096, Auth: true, Scope: "viewer", CSRF: true},
+		{Path: "/api/", Auth: true, Hidden: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	login := operationAt(t, doc, "/api/v1/auth/login", "post")
+	loginResponses := login["responses"].(map[string]any)
+	if _, has401 := loginResponses["401"]; has401 {
+		t.Error("an unauthenticated route documents a 401 it cannot return")
+	}
+	if security, _ := login["security"].([]any); security == nil || len(security) != 0 {
+		t.Errorf("login security = %v, want an explicit empty list", login["security"])
+	}
+	for _, status := range []string{"413", "429", "405"} {
+		if _, found := loginResponses[status]; !found {
+			t.Errorf("login does not document %s", status)
+		}
+	}
+
+	users := operationAt(t, doc, "/api/v1/users", "post")
+	if users["description"] != "Requires an operator-scoped token." {
+		t.Errorf("description = %v", users["description"])
+	}
+	if got := users["responses"].(map[string]any)["403"].(map[string]any)["description"]; got != "Operator scope required." {
+		t.Errorf("403 = %v", got)
+	}
+	if _, found := operationAt(t, doc, "/api/v1/users", "get")["description"]; found {
+		t.Error("a scope gate exempts GET, so the read must not claim the scope")
+	}
+
+	jobs := operationAt(t, doc, "/api/v1/jobs", "post")
+	if jobs["description"] != "Requires a viewer-scoped token." {
+		t.Errorf("description = %v", jobs["description"])
+	}
+	if got := jobs["responses"].(map[string]any)["403"].(map[string]any)["description"]; got != "Viewer scope required, or CSRF token missing or invalid." {
+		t.Errorf("403 = %v", got)
+	}
+
+	if _, found := doc["paths"].(map[string]any)["/api/{subpath}"]; found {
+		t.Error("a hidden route was documented")
+	}
+}
+
+func TestGenerateRejects(t *testing.T) {
+	get := []string{"GET"}
+	tests := []struct {
+		name   string
+		source string
+		routes []route.Policy
+		want   string
+	}{
+		{
+			name:   "paths in the preamble",
+			source: "preamble:\n  paths: {}\n",
+			want:   "must not define `paths`",
+		},
+		{
+			name:   "an unknown source key",
+			source: "preamble: {}\nextra: 1\n",
+			want:   "parsing source",
+		},
+		{
+			name:   "enrichment for a route the registry does not serve",
+			source: "operations:\n  GET /api/v1/gone:\n    summary: x\n",
+			routes: []route.Policy{{Path: "/api/v1/here", Methods: get, Auth: true}},
+			want:   "GET /api/v1/gone",
+		},
+		{
+			name: "two methods naming different templates",
+			source: "operations:\n" +
+				"  GET /api/v1/s/:\n    pathTemplate: /api/v1/s/{id}\n" +
+				"  DELETE /api/v1/s/:\n    pathTemplate: /api/v1/s/{name}\n",
+			routes: []route.Policy{{Path: "/api/v1/s/", Methods: []string{"GET", "DELETE"}, Auth: true}},
+			want:   "pathTemplate disagrees",
+		},
+		{
+			name: "two routes claiming one operation",
+			source: "operations:\n" +
+				"  GET /api/v1/a/:\n    pathTemplate: /api/v1/x\n",
+			routes: []route.Policy{
+				{Path: "/api/v1/x", Methods: get, Auth: true},
+				{Path: "/api/v1/a/", Methods: get, Auth: true},
+			},
+			want: "claimed by more than one registered route",
+		},
+		{
+			name:   "colliding operation ids",
+			source: minimalSource,
+			routes: []route.Policy{{Path: "/api/v1/a-b", Methods: get}, {Path: "/api/v1/a_b", Methods: get}},
+			want:   "duplicate operationId",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := generate(t, tt.source, tt.routes)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("err = %v, want it to contain %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestGenerateRequiresTheErrorSchema(t *testing.T) {
+	if _, err := openapi.Generate([]byte(minimalSource), nil, openapi.Options{}); err == nil {
+		t.Error("Generate without an error schema succeeded; every error response references it")
 	}
 }
