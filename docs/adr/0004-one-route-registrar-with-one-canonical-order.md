@@ -10,11 +10,14 @@ route's middleware in one `register()`, because hand-wrapping at each
 registration site is how stem shipped `POST /api/v1/reflector/config` without
 authentication (#398). The three registries grew apart:
 
-| Product | Order, outermost first | Auth | CSRF |
-| --- | --- | --- | --- |
-| niac | recover → auth → limiter → CSRF → admin → method → body | every route | per route |
-| stem | limiter → auth → method → body | per route | global |
-| seed | limiter → method → feature → role → body | global | global |
+| Product | Order, outermost first |
+| --- | --- |
+| niac | recover → auth → limiter → CSRF → admin → method → body |
+| stem | limiter → auth → method → body |
+| seed | limiter → method → feature → role → body |
+
+niac authenticates every registry route and applies CSRF per route. stem
+authenticates per route and applies CSRF globally. seed applies both globally.
 
 Owner decision 10 (2026-09-17, option a) keeps seed, stem and niac on REST
 over one shared registrar; the fleet ADR is msn-docs-internal row D-DOC-4.
