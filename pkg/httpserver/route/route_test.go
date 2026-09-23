@@ -644,3 +644,33 @@ func TestAccessLogStatus(t *testing.T) {
 		})
 	}
 }
+
+// TestOversizedBodyClosesTheConnection: net/http closes a connection once a
+// handler hits its body cap, since the rest of the body is still in flight.
+// It finds out by type-asserting the writer it was handed, so the cap must be
+// given net/http's own writer, not the registrar's tracking wrapper.
+func TestOversizedBodyClosesTheConnection(t *testing.T) {
+	g := route.New(route.Config{Error: jsonError, MaxBodyBytes: 8, Logger: slog.New(slog.DiscardHandler)})
+	g.Register(route.Route{Path: "/upload", Handler: func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.ReadAll(r.Body); err != nil {
+			jsonError(w, r, http.StatusRequestEntityTooLarge, "too_large", err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}})
+	srv := httptest.NewServer(g.Handler())
+	t.Cleanup(srv.Close)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/upload", strings.NewReader(strings.Repeat("x", 9)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusRequestEntityTooLarge || !resp.Close {
+		t.Errorf("status %d, Connection: close %v; want 413 and the connection closed", resp.StatusCode, resp.Close)
+	}
+}

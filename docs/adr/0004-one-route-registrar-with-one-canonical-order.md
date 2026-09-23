@@ -91,6 +91,14 @@ one re-verifies its change on the wire:
   `Scope` and `feature` stays `Feature`. The emitter replaces the hand-kept
   spec, which is what S-FDN-1 asks for.
 
+The manifest keys change as well. niac's `admin: true` becomes
+`scope: "admin"`, and seed's `minRole` becomes `scope`. niac's
+`TestRoutePolicyManifest` reads `.Admin` from niac's own `RoutePolicy`. It
+stays unchanged only if niac keeps that type as a projection of
+`route.Policy`. No UI or tool in the three repositories reads
+`/__capabilities` (checked 2026-09-23), so the key change affects only each
+product's own tests.
+
 Recovery, request IDs and access logging become the registrar's job. Each
 product deletes its own copies when it adopts. Two access lines per request, one
 from the product and one from the registrar, would be an adoption defect.

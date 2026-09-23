@@ -294,10 +294,25 @@ func methodGate(allowed []string, writeErr ErrorFunc, next http.Handler) http.Ha
 	})
 }
 
-// bodyLimited caps the body before the handler reads it.
+// bodyLimited caps the body before the handler reads it. The reader gets
+// net/http's own writer: on hitting the cap it type-asserts that writer to
+// close the connection after the reply (the rest of the body is still in
+// flight), and a wrapper in between would silently disable that. The handler
+// still writes through w.
 func bodyLimited(limit int64, next http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		r.Body = http.MaxBytesReader(innermost(w), r.Body, limit)
 		next(w, r)
 	})
+}
+
+// innermost follows Unwrap to the writer net/http created.
+func innermost(w http.ResponseWriter) http.ResponseWriter {
+	for {
+		u, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return w
+		}
+		w = u.Unwrap()
+	}
 }
