@@ -198,6 +198,17 @@ jobs:
       contents: read
       security-events: write
 
+  # Fleet-shared license gate: the allow-list lives in the reusable workflow, the
+  # single edit point for every repo. foundation is imported by all four
+  # products, so a copyleft dependency here would reach every shipped binary.
+  # The reusable workflow skips its npm half because this module has no
+  # ui/package-lock.json.
+  license-check:
+    name: License Compliance
+    uses: MustardSeedNetworks/.github/.github/workflows/license-check.yml@fbfa371bce48c7eadcf378ca691e812acb3ec029 # .github#90, untagged
+    permissions:
+      contents: read
+
   # CodeQL's own job reports success when the *analysis* succeeds, whether or
   # not it found anything -- so without this the repository could carry open
   # High alerts with every check green. Scoped to CodeQL rather than "any High
@@ -251,6 +262,7 @@ jobs:
       - lint
       - security
       - semgrep
+      - license-check
       - codeql-alert-gate
       - workflow-lint
     if: always()
