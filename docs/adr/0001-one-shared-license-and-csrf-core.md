@@ -35,7 +35,8 @@ Each product keeps a thin layer: `internal/license/policy.go` (codes, tiers,
 feature catalog) and its CSRF middleware wrapper. A change to the crypto is a
 change here, tagged as a release; Renovate proposes the bump to every
 consumer. The module is BUSL-1.1 so seed, itself open-core under BUSL-1.1,
-still builds standalone; stem and niac import it freely.
+still builds standalone. Seed and Stem import `pkg/license`; NIAC does not
+(see Consequences).
 
 ## Consequences
 
