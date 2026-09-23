@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.15](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.14...v0.5.15) (2026-09-23)
+
+
+### Features
+
+* **password:** share bounded offline hashing ([#57](https://github.com/MustardSeedNetworks/foundation/issues/57)) ([c336f59](https://github.com/MustardSeedNetworks/foundation/commit/c336f59aeb2d4c79c7da309d2f6b1b038e987b91))
+
 ## [0.5.14](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.13...v0.5.14) (2026-09-23)
 
 
