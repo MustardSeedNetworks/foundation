@@ -1,0 +1,754 @@
+[
+  {
+    "path": "/__version",
+    "methods": [
+      "GET"
+    ],
+    "auth": false,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/__capabilities",
+    "methods": [
+      "GET"
+    ],
+    "auth": false,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/csrf-token",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/stats",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/devices",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/history",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/sessions",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/sessions/",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/config",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "scope": "admin",
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/config/devices",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/config/devices/",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/config/merge",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/config/import",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "scope": "admin",
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/replay",
+    "methods": [
+      "GET",
+      "POST",
+      "DELETE"
+    ],
+    "maxBodyBytes": 146800640,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/alerts",
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/debug/level",
+    "methods": [
+      "GET",
+      "PUT"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/capture/filter",
+    "methods": [
+      "GET",
+      "PUT",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/capture",
+    "methods": [
+      "GET",
+      "POST",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/config/schema",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/files",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/templates",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/templates/use",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/templates/",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/devices/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/synthesize-walk/models",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/device-schemas",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/device-schemas/",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/topology",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/topology/export",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/segments",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/client-errors",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/errors",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/errors/actions",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/interfaces",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/attachment-policies",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/runtime",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/behaviors",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/simulation/attachments",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 62915584,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/simulation/preflight",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 62915584,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/simulation",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE"
+    ],
+    "maxBodyBytes": 62915584,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/version",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/neighbors",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/auth/scope",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/library/drafts",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "maxBodyBytes": 62915584,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/drafts/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "maxBodyBytes": 62915584,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/networks",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "maxBodyBytes": 62915584,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/networks/",
+    "methods": [
+      "GET",
+      "DELETE"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/walks",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/library/walks/revert",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/walks/sanitize",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/walks/sanitize-batch",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/library/pcaps",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/library/install",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 734003200,
+    "auth": true,
+    "csrf": true,
+    "scope": "admin",
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/scenario/packs",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/scenario/profiles",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/scenario/profiles/captured",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/scenario/generate",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/import",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 100664320,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/capture-profile",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/validate",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/analyze",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/fix",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/list",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/walk/validate-all",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/pcap/upload",
+    "methods": [
+      "POST"
+    ],
+    "maxBodyBytes": 146800640,
+    "auth": true,
+    "csrf": true,
+    "rateLimited": true
+  },
+  {
+    "path": "/api/v1/pcap/",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/stream/packets",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/stream/logs",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/v1/stream/status",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/metrics",
+    "methods": [
+      "GET"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false
+  },
+  {
+    "path": "/api/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "maxBodyBytes": 1048576,
+    "auth": true,
+    "csrf": false,
+    "rateLimited": false,
+    "hidden": true
+  }
+]

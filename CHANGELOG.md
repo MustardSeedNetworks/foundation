@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.16](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.15...v0.5.16) (2026-09-23)
+
+
+### Features
+
+* **route:** shared route registrar, canonical order and OpenAPI emitter ([#60](https://github.com/MustardSeedNetworks/foundation/issues/60)) ([c50afad](https://github.com/MustardSeedNetworks/foundation/commit/c50afadb03faea9b37a2cb3bd765b7f394e42361))
+
 ## [0.5.15](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.14...v0.5.15) (2026-09-23)
 
 
