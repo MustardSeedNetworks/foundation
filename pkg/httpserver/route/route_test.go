@@ -226,6 +226,55 @@ func TestRefusalPrecedence(t *testing.T) {
 	}
 }
 
+// TestSessionKeyHook proves Config.SessionKey decides which token a CSRF
+// route demands. A cookie session carries no Authorization header, so without
+// the hook the registrar would validate against the header key and refuse
+// every browser mutation.
+func TestSessionKeyHook(t *testing.T) {
+	tr := &trace{}
+	mgr := csrf.NewManager()
+	t.Cleanup(mgr.Stop)
+	cfg := tracedConfig(tr, mgr)
+	cfg.SessionKey = func(r *http.Request) (string, bool) {
+		c, err := r.Cookie("session")
+		if err != nil {
+			return "", false
+		}
+		return csrf.SessionKey(c.Value), true
+	}
+	g := route.New(cfg)
+	g.Register(route.Route{Path: "/api/v1/x", Handler: ok(tr), Methods: []string{http.MethodPost}, CSRF: true})
+	cookieToken, err := mgr.GetOrCreate(csrf.SessionKey("cookie-jwt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name       string
+		cookie     bool
+		token      string
+		wantStatus int
+	}{
+		{name: "cookie session with its token", cookie: true, token: cookieToken, wantStatus: http.StatusNoContent},
+		{name: "cookie session without a token", cookie: true, wantStatus: http.StatusForbidden},
+		{name: "no session at all", wantStatus: http.StatusNoContent},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/x", nil)
+			if tt.cookie {
+				req.Header.Set("Cookie", "session=cookie-jwt")
+			}
+			if tt.token != "" {
+				req.Header.Set("X-Csrf-Token", tt.token)
+			}
+			if rec := serve(g.Handler(), req); rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body %s", rec.Code, tt.wantStatus, rec.Body)
+			}
+		})
+	}
+}
+
 // TestMethodGateRejectsWrongMethod is niac's contract: a GET-only route
 // answers another method with 405, an Allow header and the product's envelope,
 // and the handler never runs.

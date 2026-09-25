@@ -105,6 +105,12 @@ type Config struct {
 	// CSRF holds the per-session tokens. Required by any Route.CSRF.
 	CSRF *csrf.Manager
 
+	// SessionKey derives a request's CSRF session key. Nil means the
+	// Authorization bearer ([csrf.SessionKeyFromRequest]); a product whose
+	// browser session is a cookie supplies the key its token endpoint mints
+	// under.
+	SessionKey csrf.SessionKeyFunc
+
 	// Scope returns the gate for one scope. It is called once per route, at
 	// registration. Required by any Route.Scope.
 	Scope func(scope string) Middleware
@@ -192,7 +198,11 @@ func (g *Registrar) Register(rt Route) {
 		h = g.cfg.Feature(rt.Feature)(h)
 	}
 	if rt.CSRF {
-		h = csrf.Protect(g.cfg.CSRF, g.cfg.Error, h.ServeHTTP)
+		if g.cfg.SessionKey != nil {
+			h = csrf.ProtectKeyed(g.cfg.CSRF, g.cfg.SessionKey, g.cfg.Error, h.ServeHTTP)
+		} else {
+			h = csrf.Protect(g.cfg.CSRF, g.cfg.Error, h.ServeHTTP)
+		}
 	}
 	if len(rt.Methods) > 0 {
 		h = methodGate(rt.Methods, g.cfg.Error, h)

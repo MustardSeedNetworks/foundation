@@ -91,7 +91,10 @@ one re-verifies its change on the wire:
   `/__capabilities` become `Auth: false` registry routes. The emitter's
   hard-coded public-path list goes away.
 - **stem.** CSRF moves from global to per route. Every mutating route must
-  declare it, and the registration panics prove none was missed.
+  declare it, and the registration panics prove none was missed. stem's
+  browser session is a cookie, not an Authorization header, so it supplies
+  `Config.SessionKey`; with the header-only default every browser mutation
+  would be refused.
 - **seed.** Auth and CSRF move from global to per route. `minRole` becomes
   `Scope` and `feature` stays `Feature`. The emitter replaces the hand-kept
   spec, which is what S-FDN-1 asks for.
