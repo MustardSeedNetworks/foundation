@@ -23,7 +23,7 @@ import (
 func TestEnsureCertificateWritesAnOwnerOnlyKey(t *testing.T) {
 	dir := t.TempDir()
 	keyPath := filepath.Join(dir, "server.key")
-	if _, err := httpserver.EnsureCertificate(filepath.Join(dir, "server.crt"), keyPath, httpserver.CertOptions{}); err != nil {
+	if _, err := httpserver.EnsureCertificate(nil, filepath.Join(dir, "server.crt"), keyPath, httpserver.CertOptions{}); err != nil {
 		t.Fatalf("EnsureCertificate: %v", err)
 	}
 

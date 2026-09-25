@@ -6,16 +6,20 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -67,10 +71,23 @@ func SelfSignedCertificate(opts CertOptions) (tls.Certificate, error) {
 // learned that a certificate generated before loopback IP SANs were added
 // keeps being reused and keeps failing the browser. A certificate that does
 // not cover the names the daemon advertises is not usable, whatever its age.
-func EnsureCertificate(certPath, keyPath string, opts CertOptions) (tls.Certificate, error) {
+//
+// Every pair it writes is logged with the reason, the expiry and the
+// fingerprint. A replacement is a warning: an operator who installed the
+// previous certificate in a trust store gets a browser warning until they
+// install this one, and the log is the only place that can tell them why.
+// A nil logger logs nothing, as with [Bind].
+func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertOptions) (tls.Certificate, error) {
 	existing, loadErr := tls.LoadX509KeyPair(certPath, keyPath)
-	if loadErr == nil && certificateCovers(existing, opts) {
-		return existing, nil
+	reason := "missing"
+	switch {
+	case loadErr == nil:
+		reason = certificateProblem(existing, opts)
+		if reason == "" {
+			return existing, nil
+		}
+	case !errors.Is(loadErr, fs.ErrNotExist):
+		reason = "unreadable: " + loadErr.Error()
 	}
 
 	certPEM, keyPEM, genErr := selfSignedPEM(opts)
@@ -90,33 +107,69 @@ func EnsureCertificate(certPath, keyPath string, opts CertOptions) (tls.Certific
 		return tls.Certificate{}, writeErr
 	}
 
-	return tls.X509KeyPair(certPEM, keyPEM)
+	cert, pairErr := tls.X509KeyPair(certPEM, keyPEM)
+	if pairErr != nil {
+		return tls.Certificate{}, pairErr
+	}
+	if logger != nil {
+		logGenerated(logger, cert, certPath, reason)
+	}
+	return cert, nil
 }
 
-// certificateCovers reports whether cert is still usable for opts: unexpired,
-// and covering every name asked for plus loopback.
-func certificateCovers(cert tls.Certificate, opts CertOptions) bool {
+func logGenerated(logger *slog.Logger, cert tls.Certificate, certPath, reason string) {
+	leaf, parseErr := x509.ParseCertificate(cert.Certificate[0])
+	if parseErr != nil {
+		return
+	}
+	attrs := []any{
+		"cert_file", certPath,
+		"reason", reason,
+		"valid_until", leaf.NotAfter.UTC().Format(time.RFC3339),
+		"sha256", fingerprint(leaf.Raw),
+	}
+	if reason == "missing" {
+		logger.Info("generated self-signed TLS certificate", attrs...)
+		return
+	}
+	logger.Warn("replaced self-signed TLS certificate; re-install it wherever the previous one was trusted", attrs...)
+}
+
+// fingerprint is the SHA-256 of der as colon-separated uppercase hex pairs,
+// the form browsers and `openssl x509 -fingerprint -sha256` display.
+func fingerprint(der []byte) string {
+	sum := sha256.Sum256(der)
+	pairs := make([]string, len(sum))
+	for i, b := range sum {
+		pairs[i] = fmt.Sprintf("%02X", b)
+	}
+	return strings.Join(pairs, ":")
+}
+
+// certificateProblem reports why cert is no longer usable for opts — expired,
+// or not covering a name asked for or loopback — and "" when it still is.
+func certificateProblem(cert tls.Certificate, opts CertOptions) string {
 	if len(cert.Certificate) == 0 {
-		return false
+		return "no certificate in the file"
 	}
 	leaf, parseErr := x509.ParseCertificate(cert.Certificate[0])
 	if parseErr != nil {
-		return false
+		return "unparsable: " + parseErr.Error()
 	}
 	if time.Now().After(leaf.NotAfter) {
-		return false
+		return "expired"
 	}
 	for _, name := range names(opts) {
 		if leaf.VerifyHostname(name) != nil {
-			return false
+			return "does not cover " + name
 		}
 	}
 	for _, ip := range loopbackIPs() {
 		if leaf.VerifyHostname(ip.String()) != nil {
-			return false
+			return "does not cover " + ip.String()
 		}
 	}
-	return true
+	return ""
 }
 
 func names(opts CertOptions) []string {

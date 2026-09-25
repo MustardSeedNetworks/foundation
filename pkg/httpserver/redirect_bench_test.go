@@ -86,7 +86,7 @@ func benchPEM() (certPEM, keyPEM []byte, err error) {
 	}
 	certPath := filepath.Join(dir, httpserver.DefaultCertFileName)
 	keyPath := filepath.Join(dir, httpserver.DefaultKeyFileName)
-	if _, ensureErr := httpserver.EnsureCertificate(certPath, keyPath, httpserver.CertOptions{DNSNames: []string{"localhost"}}); ensureErr != nil {
+	if _, ensureErr := httpserver.EnsureCertificate(nil, certPath, keyPath, httpserver.CertOptions{DNSNames: []string{"localhost"}}); ensureErr != nil {
 		return nil, nil, ensureErr
 	}
 	if certPEM, err = os.ReadFile(certPath); err != nil {
