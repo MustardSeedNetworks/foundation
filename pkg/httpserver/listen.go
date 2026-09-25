@@ -97,9 +97,12 @@ func (cfg Config) tlsConfig() (*tls.Config, error) {
 	if certErr != nil {
 		return nil, certErr
 	}
+	// ServeTLS would add these itself; Serve on this pre-wrapped listener
+	// cannot, so without them every client falls back to HTTP/1.1.
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   minVersion,
+		NextProtos:   []string{"h2", "http/1.1"},
 	}, nil
 }
 

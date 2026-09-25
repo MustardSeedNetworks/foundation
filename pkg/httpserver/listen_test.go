@@ -82,6 +82,39 @@ func TestListenServesVerifiableTLSAndRedirectsPlaintext(t *testing.T) {
 	}
 }
 
+// ServeTLS advertises h2 itself; Serve on an already-wrapped listener cannot,
+// so Listen must. Without it, adopting Listen silently drops every product to
+// HTTP/1.1. A client that offers only http/1.1 must still be served.
+func TestListenNegotiatesHTTP2AndStillServesHTTP1(t *testing.T) {
+	dir := t.TempDir()
+	addr, client := serve(t, httpserver.Config{
+		Addr:    "127.0.0.1:0",
+		CertDir: dir,
+		Cert:    httpserver.CertOptions{DNSNames: []string{"localhost"}},
+	})
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("client transport is %T; want *http.Transport", client.Transport)
+	}
+	url := "https://localhost:" + portOf(t, addr) + "/status"
+
+	h2 := &http.Client{Timeout: client.Timeout, Transport: transport.Clone()}
+	h2.Transport.(*http.Transport).ForceAttemptHTTP2 = true
+	resp := get(t, h2, url)
+	_ = resp.Body.Close()
+	if resp.TLS == nil || resp.TLS.NegotiatedProtocol != "h2" || resp.ProtoMajor != 2 {
+		t.Errorf("h2-capable client got proto %q; want HTTP/2.0 over ALPN h2", resp.Proto)
+	}
+
+	h1 := &http.Client{Timeout: client.Timeout, Transport: transport.Clone()}
+	h1.Transport.(*http.Transport).TLSClientConfig.NextProtos = []string{"http/1.1"}
+	resp = get(t, h1, url)
+	_ = resp.Body.Close()
+	if resp.ProtoMajor != 1 || resp.TLS.NegotiatedProtocol != "http/1.1" {
+		t.Errorf("http/1.1-only client got proto %q, ALPN %q; want HTTP/1.1", resp.Proto, resp.TLS.NegotiatedProtocol)
+	}
+}
+
 func portOf(t *testing.T, addr string) string {
 	t.Helper()
 	_, p, err := net.SplitHostPort(addr)
