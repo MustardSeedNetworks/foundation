@@ -11,7 +11,8 @@ import (
 )
 
 // TestCheckRoutePolicyScript runs the shipped gate against fixture trees: a
-// product whose routes all go through the registrar passes, and one that
+// product whose routes all go through the registrar passes, as does a
+// slog.Handler wrapper whose Handle call registers nothing, and one that
 // builds its own mux or uses the default one fails naming the line.
 func TestCheckRoutePolicyScript(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -23,9 +24,12 @@ func TestCheckRoutePolicyScript(t *testing.T) {
 		wantLine string
 	}{
 		{dir: "clean", wantLine: "all routes go through the registrar"},
+		{dir: "sloghandler", wantLine: "all routes go through the registrar"},
 		{dir: "direct", wantFail: true, wantLine: "server.go:4:"},
 		{dir: "direct", wantFail: true, wantLine: "server.go:5:"},
+		{dir: "direct", wantFail: true, wantLine: "raw.go:4:"},
 		{dir: "defaultmux", wantFail: true, wantLine: "metrics.go:3:"},
+		{dir: "defaultmux", wantFail: true, wantLine: "debug.go:3:"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.dir+tt.wantLine, func(t *testing.T) {
