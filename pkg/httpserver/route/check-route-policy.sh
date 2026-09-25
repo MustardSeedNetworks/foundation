@@ -17,6 +17,11 @@
 # (The module cache does not keep the executable bit, hence `bash`.) Each dir
 # defaults to internal/api and is searched recursively. Test files are exempt:
 # a test may build a mux to exercise a handler in isolation.
+#
+# A registration is a new mux, anything on net/http's default mux, or a
+# Handle/HandleFunc whose first argument is a string literal (a mux pattern).
+# A bare `.Handle(` would also match slog.Handler.Handle, which registers
+# nothing (foundation#70).
 set -euo pipefail
 
 if [[ $# -eq 0 ]]; then
@@ -24,7 +29,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 violations=$(grep -rnE --include='*.go' --exclude='*_test.go' \
-	'http\.NewServeMux\(|\.HandleFunc\(|\.Handle\(' "$@" || true)
+	'http\.NewServeMux\(|http\.Handle(Func)?\(|\.Handle(Func)?\(\s*["`]' "$@" || true)
 
 if [[ -n "$violations" ]]; then
 	echo "❌ Route-policy gate: register every route through route.Registrar"
