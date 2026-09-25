@@ -3,10 +3,12 @@
 package httpserver_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -177,7 +179,7 @@ func TestListenUsesTheOperatorCertificateAndFailsLoudlyWhenItIsMissing(t *testin
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "operator.crt")
 	keyPath := filepath.Join(dir, "operator.key")
-	if _, err := httpserver.EnsureCertificate(certPath, keyPath, httpserver.CertOptions{DNSNames: []string{"operator.example"}}); err != nil {
+	if _, err := httpserver.EnsureCertificate(nil, certPath, keyPath, httpserver.CertOptions{DNSNames: []string{"operator.example"}}); err != nil {
 		t.Fatalf("EnsureCertificate: %v", err)
 	}
 
@@ -198,5 +200,21 @@ func TestListenUsesTheOperatorCertificateAndFailsLoudlyWhenItIsMissing(t *testin
 	}
 	if !strings.Contains(missingErr.Error(), missing) {
 		t.Errorf("error %q does not name the missing certificate", missingErr)
+	}
+}
+
+// The products get the certificate log line through Listen, not by calling
+// EnsureCertificate; without Config.Logger reaching it the fix in
+// foundation#76 would never show up in a product's journal.
+func TestListenLogsTheCertificateItGenerates(t *testing.T) {
+	var buf bytes.Buffer
+	serve(t, httpserver.Config{
+		Addr:    "127.0.0.1:0",
+		CertDir: t.TempDir(),
+		Logger:  slog.New(slog.NewJSONHandler(&buf, nil)),
+	})
+
+	if !strings.Contains(buf.String(), `"msg":"generated self-signed TLS certificate"`) {
+		t.Errorf("Listen did not log the generated certificate; log: %s", buf.String())
 	}
 }

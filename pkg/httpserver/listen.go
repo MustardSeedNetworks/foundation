@@ -46,7 +46,8 @@ type Config struct {
 	// Cert describes the certificate to generate when none is configured.
 	Cert CertOptions
 
-	// Logger records the fallback warning and plaintext redirects.
+	// Logger records the fallback warning, a generated or replaced
+	// self-signed certificate, and plaintext redirects.
 	Logger *slog.Logger
 }
 
@@ -119,5 +120,5 @@ func (cfg Config) certificate() (tls.Certificate, error) {
 	if dir == "" {
 		dir = "certs"
 	}
-	return EnsureCertificate(filepath.Join(dir, DefaultCertFileName), filepath.Join(dir, DefaultKeyFileName), cfg.Cert)
+	return EnsureCertificate(cfg.Logger, filepath.Join(dir, DefaultCertFileName), filepath.Join(dir, DefaultKeyFileName), cfg.Cert)
 }

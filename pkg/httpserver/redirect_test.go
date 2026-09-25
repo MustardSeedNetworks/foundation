@@ -49,7 +49,7 @@ func wrapped(t *testing.T, opts httpserver.RedirectOptions) (string, *http.Clien
 	t.Cleanup(func() { _ = ln.Close() })
 
 	dir := t.TempDir()
-	cert, certErr := httpserver.EnsureCertificate(
+	cert, certErr := httpserver.EnsureCertificate(nil,
 		filepath.Join(dir, httpserver.DefaultCertFileName),
 		filepath.Join(dir, httpserver.DefaultKeyFileName),
 		httpserver.CertOptions{DNSNames: []string{"localhost"}},
