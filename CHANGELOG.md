@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.0...v0.6.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **route:** stop check-route-policy.sh flagging slog.Handler.Handle ([#79](https://github.com/MustardSeedNetworks/foundation/issues/79)) ([94642ae](https://github.com/MustardSeedNetworks/foundation/commit/94642ae828a21a14e563edb00fd776867ef89220)), closes [#70](https://github.com/MustardSeedNetworks/foundation/issues/70)
+
 ## [0.6.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.21...v0.6.0) (2026-09-25)
 
 
