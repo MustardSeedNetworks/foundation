@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.20](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.19...v0.5.20) (2026-09-25)
+
+
+### Features
+
+* **csrf:** let a product derive the CSRF session key ([#72](https://github.com/MustardSeedNetworks/foundation/issues/72)) ([5b93580](https://github.com/MustardSeedNetworks/foundation/commit/5b935801bd84a84970e005857c008c146c4c46fb)), closes [#71](https://github.com/MustardSeedNetworks/foundation/issues/71)
+
 ## [0.5.19](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.18...v0.5.19) (2026-09-23)
 
 
