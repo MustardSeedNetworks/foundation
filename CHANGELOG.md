@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.21](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.20...v0.5.21) (2026-09-25)
+
+
+### Bug Fixes
+
+* **httpserver:** advertise h2 and http/1.1 over ALPN in Listen ([#74](https://github.com/MustardSeedNetworks/foundation/issues/74)) ([38f12fc](https://github.com/MustardSeedNetworks/foundation/commit/38f12fc30a36317449e25c495bad50f94ef4ca56)), closes [#69](https://github.com/MustardSeedNetworks/foundation/issues/69)
+
 ## [0.5.20](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.19...v0.5.20) (2026-09-25)
 
 
