@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.21...v0.6.0) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **httpserver:** EnsureCertificate takes a *slog.Logger as its first argument.
+
+### Bug Fixes
+
+* **httpserver:** log every self-signed certificate EnsureCertificate writes ([#77](https://github.com/MustardSeedNetworks/foundation/issues/77)) ([532a255](https://github.com/MustardSeedNetworks/foundation/commit/532a25529448f0541fa0be102922fd788b619a91)), closes [#76](https://github.com/MustardSeedNetworks/foundation/issues/76)
+
 ## [0.5.21](https://github.com/MustardSeedNetworks/foundation/compare/v0.5.20...v0.5.21) (2026-09-25)
 
 
