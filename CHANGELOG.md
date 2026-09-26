@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.1...v0.6.2) (2026-09-26)
+
+
+### Miscellaneous
+
+* bump toolchain to Go 1.27.1, golangci-lint 2.14.0, zizmor 1.30.1 ([#82](https://github.com/MustardSeedNetworks/foundation/issues/82)) ([475c851](https://github.com/MustardSeedNetworks/foundation/commit/475c8514d46648e0e8f9e8410b81ebd8785302d6))
+
 ## [0.6.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.0...v0.6.1) (2026-09-25)
 
 
