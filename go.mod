@@ -1,6 +1,6 @@
 module github.com/MustardSeedNetworks/foundation
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/go-webauthn/webauthn v0.18.2
