@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.2...v0.6.3) (2026-09-26)
+
+
+### Miscellaneous
+
+* **release:** bump minor for feat: while below 1.0 ([#85](https://github.com/MustardSeedNetworks/foundation/issues/85)) ([6deee65](https://github.com/MustardSeedNetworks/foundation/commit/6deee651caa0c1511d7f318d327271aa323fc770)), closes [#84](https://github.com/MustardSeedNetworks/foundation/issues/84)
+
 ## [0.6.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.1...v0.6.2) (2026-09-26)
 
 
