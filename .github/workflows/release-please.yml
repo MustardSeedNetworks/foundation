@@ -17,12 +17,9 @@
 # by skipping. release-please is idempotent, so a periodic run is free of false
 # positives and the skipped release self-heals within the interval.
 #
-# Unlike the products there is no release.yml here: this module ships no
-# binaries and no packages. The tag IS the release -- consumers resolve it with
-# `go get`. That also means the App-token requirement is softer here than in
-# seed, where a GITHUB_TOKEN tag would fail to trigger the package build. It is
-# used anyway, for one reason that does apply: an App-authored release PR gets
-# CI, and a GITHUB_TOKEN-authored one does not.
+# The Go module ships by tag. The independently versioned UI package publishes
+# through publish-auth-ui.yml. The App token allows release PRs to receive CI
+# and published-release events to trigger that separately gated workflow.
 # =============================================================================
 
 name: Release Please
