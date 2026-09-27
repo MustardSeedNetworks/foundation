@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.3...v0.7.0) (2026-09-27)
+
+
+### Features
+
+* **ui:** bootstrap shared authentication package ([#88](https://github.com/MustardSeedNetworks/foundation/issues/88)) ([e21098e](https://github.com/MustardSeedNetworks/foundation/commit/e21098ec5b82149c1bb479b2987f6c44b2f1d961))
+
 ## [0.6.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.2...v0.6.3) (2026-09-26)
 
 
