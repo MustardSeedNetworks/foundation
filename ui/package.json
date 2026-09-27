@@ -1,0 +1,44 @@
+{
+  "name": "@mustardseednetworks/auth-ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared authentication interface for Mustard Seed Networks products",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "import": "./dist/contracts.js"
+    },
+    "./webauthn": {
+      "types": "./dist/webauthn.d.ts",
+      "import": "./dist/webauthn.js"
+    }
+  },
+  "engines": {
+    "node": "26.10.0",
+    "npm": "12.1.0"
+  },
+  "packageManager": "npm@12.1.0",
+  "scripts": {
+    "prebuild": "node scripts/clean-build.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check . --error-on-warnings",
+    "fmt-check": "biome format .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.include=src/webauthn.ts --coverage.thresholds.lines=100 --coverage.thresholds.functions=100 --coverage.thresholds.statements=100 --coverage.thresholds.branches=90",
+    "test:package": "node scripts/test-package.ts",
+    "prepack": "npm run build && node scripts/prepare-package.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "26.6.2",
+    "@vitest/coverage-v8": "4.1.11",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}
