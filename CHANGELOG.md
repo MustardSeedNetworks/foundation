@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.0...v0.7.1) (2026-09-30)
+
+
+### Miscellaneous
+
+* onboard Renovate with the fleet preset ([#93](https://github.com/MustardSeedNetworks/foundation/issues/93)) ([300981e](https://github.com/MustardSeedNetworks/foundation/commit/300981e57c6fc8b59eece1a792b733b63767f1eb)), closes [#92](https://github.com/MustardSeedNetworks/foundation/issues/92)
+
 ## [0.7.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.6.3...v0.7.0) (2026-09-27)
 
 
