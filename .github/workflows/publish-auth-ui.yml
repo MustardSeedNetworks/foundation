@@ -1,0 +1,56 @@
+name: Publish authentication UI
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: auth-ui-publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      vars.AUTH_UI_NPM_PUBLISH_ENABLED == 'true' &&
+      github.repository == 'MustardSeedNetworks/foundation' &&
+      startsWith(github.event.release.tag_name, 'auth-ui-v') &&
+      !github.event.release.prerelease && !github.event.release.draft
+    runs-on: ubuntu-latest
+    environment: npm-auth-ui
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ui
+    env:
+      AUTH_UI_RELEASE_TAG: ${{ github.event.release.tag_name }}
+      AUTH_UI_RELEASE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable release identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$AUTH_UI_RELEASE_SHA"
+          test "$(git rev-parse "refs/tags/$AUTH_UI_RELEASE_TAG^{commit}")" = "$AUTH_UI_RELEASE_SHA"
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: ./.github/actions/setup-node
+      - name: Verify release metadata
+        run: node scripts/release-policy.ts
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      - run: npm audit
+      - name: Pack and verify the publication artifact
+        run: |
+          AUTH_UI_ARTIFACT_PATH="$RUNNER_TEMP/auth-ui.tgz" npm run test:package
+          sha512sum "$RUNNER_TEMP/auth-ui.tgz"
+      - name: Publish verified artifact using npm trusted publishing
+        run: npm publish "$RUNNER_TEMP/auth-ui.tgz" --ignore-scripts --access public
