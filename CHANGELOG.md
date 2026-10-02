@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.1...v0.7.2) (2026-10-02)
+
+
+### Documentation
+
+* **license:** name foundation as the Licensed Work ([#95](https://github.com/MustardSeedNetworks/foundation/issues/95)) ([161ff8f](https://github.com/MustardSeedNetworks/foundation/commit/161ff8f987d9380ce744ace12a53d3a2b08753ae))
+
 ## [0.7.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.0...v0.7.1) (2026-09-30)
 
 
