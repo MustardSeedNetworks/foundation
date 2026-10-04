@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.2...v0.7.3) (2026-10-04)
+
+
+### Continuous Integration
+
+* pin the license gate to the release that excludes the project itself ([#98](https://github.com/MustardSeedNetworks/foundation/issues/98)) ([5e286ec](https://github.com/MustardSeedNetworks/foundation/commit/5e286ecdc9b69cdadea0cfc353eb9c9640824f94))
+
 ## [0.7.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.1...v0.7.2) (2026-10-02)
 
 
