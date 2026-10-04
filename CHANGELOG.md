@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.3...v0.7.4) (2026-10-04)
+
+
+### Bug Fixes
+
+* **license:** adopt a new activation state only once it is saved ([#100](https://github.com/MustardSeedNetworks/foundation/issues/100)) ([52bbd60](https://github.com/MustardSeedNetworks/foundation/commit/52bbd60c9aa5d91747275d63951d337d5023041f)), closes [#41](https://github.com/MustardSeedNetworks/foundation/issues/41)
+
 ## [0.7.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.2...v0.7.3) (2026-10-04)
 
 
