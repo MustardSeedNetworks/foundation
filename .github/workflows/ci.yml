@@ -226,7 +226,7 @@ jobs:
   # The reusable workflow also checks the shared UI's ui/package-lock.json.
   license-check:
     name: License Compliance
-    uses: MustardSeedNetworks/.github/.github/workflows/license-check.yml@081b0412072c2d30c6ef219180771fad9fbab1ba # .github#90, untagged
+    uses: MustardSeedNetworks/.github/.github/workflows/license-check.yml@3587ce6ed01832f24bee273944b9196316e10c5f # .github#102, untagged
     permissions:
       contents: read
 
