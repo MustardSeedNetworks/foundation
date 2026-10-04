@@ -7,9 +7,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -80,8 +80,7 @@ func writeState(t *testing.T, dir string, state *ActivationState) {
 		t.Fatalf("NewManagerWithDir: %v", err)
 	}
 	state.DeviceHash = m.fingerprint.Hash()
-	m.state = state
-	if saveErr := m.saveState(); saveErr != nil {
+	if saveErr := m.saveState(state); saveErr != nil {
 		t.Fatalf("saveState: %v", saveErr)
 	}
 }
@@ -201,6 +200,12 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 			if res.Success != tc.wantTrialOK {
 				t.Errorf("StartTrial success = %v (%q), want %v", res.Success, res.Message, tc.wantTrialOK)
 			}
+			// The guard must be what refuses an unusable state. A failed
+			// write would also refuse the unreadable fixture (its path is a
+			// directory), so only the refusal's wording tells them apart.
+			if refusal := "License state is " + tc.wantStatus.String(); !tc.wantUsable && !strings.HasPrefix(res.Message, refusal) {
+				t.Errorf("StartTrial message = %q, want the %q refusal", res.Message, refusal)
+			}
 			if !tc.wantTrialOK {
 				after := readLicenseBytes(t, dir)
 				if string(after) != string(before) {
@@ -211,18 +216,84 @@ func TestLoadStatusFailsClosed(t *testing.T) {
 	}
 }
 
-// readLicenseBytes returns the raw licence file, or nil when it is absent or
-// is not a regular file.
+// readLicenseBytes returns the raw licence file, or nil when it cannot be read
+// (absent, or a directory standing in its place).
 func readLicenseBytes(t *testing.T, dir string) []byte {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Clean(filepath.Join(dir, ".license")))
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) || errors.Is(err, os.ErrInvalid) {
-			return nil
-		}
 		return nil
 	}
 	return b
+}
+
+// TestFailedSaveGrantsNothing pins #41: a state that could not be written is
+// never adopted. The manager must not hold it, must not grant from it, and must
+// not mark itself unverified, so the same call succeeds once the disk recovers.
+func TestFailedSaveGrantsNothing(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		call func(t *testing.T, m *Manager, priv ed25519.PrivateKey) *ActivationResult
+	}{
+		{
+			name: "StartTrial",
+			call: func(_ *testing.T, m *Manager, _ ed25519.PrivateKey) *ActivationResult {
+				return m.StartTrial()
+			},
+		},
+		{
+			name: "Activate",
+			call: func(t *testing.T, m *Manager, priv ed25519.PrivateKey) *ActivationResult {
+				t.Helper()
+				return m.Activate(internalSignToken(t, priv, 2, time.Now().Add(30*day).Unix()))
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := filepath.Join(t.TempDir(), "config")
+			pub, priv := internalTestKeyPair(t)
+			m, err := NewManagerWithDir(NewVerifier(pub, internalTestPolicy()), internalTestPolicy(), dir)
+			if err != nil {
+				t.Fatalf("NewManagerWithDir: %v", err)
+			}
+
+			// A regular file where the config directory belongs makes
+			// MkdirAll fail for every user, root included.
+			if err := os.WriteFile(dir, nil, 0o600); err != nil {
+				t.Fatalf("write blocker: %v", err)
+			}
+			if res := tc.call(t, m, priv); res.Success {
+				t.Fatalf("succeeded with an unwritable config dir: %q", res.Message)
+			}
+			if m.IsActivated() {
+				t.Error("IsActivated = true after a failed save")
+			}
+			if got := m.GetState(); got != nil {
+				t.Errorf("GetState = %+v after a failed save, want nil", got)
+			}
+			if got := m.LoadStatus(); got != StatusMissing {
+				t.Errorf("LoadStatus = %v after a failed save, want %v", got, StatusMissing)
+			}
+
+			if err := os.Remove(dir); err != nil {
+				t.Fatalf("remove blocker: %v", err)
+			}
+			if res := tc.call(t, m, priv); !res.Success {
+				t.Fatalf("retry after the disk recovered failed: %q", res.Message)
+			}
+			if !m.IsActivated() {
+				t.Error("IsActivated = false after a successful retry")
+			}
+			if readLicenseBytes(t, dir) == nil {
+				t.Error("successful retry wrote no licence file")
+			}
+		})
+	}
 }
 
 // TestLoadStatusString names every status for the operator-facing log line.
