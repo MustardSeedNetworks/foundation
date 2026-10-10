@@ -20,9 +20,9 @@
   },
   "engines": {
     "node": "26.10.0",
-    "npm": "12.1.0"
+    "npm": "12.2.0"
   },
-  "packageManager": "npm@12.1.0",
+  "packageManager": "npm@12.2.0",
   "scripts": {
     "prebuild": "node scripts/clean-build.ts",
     "build": "tsc -p tsconfig.build.json",
