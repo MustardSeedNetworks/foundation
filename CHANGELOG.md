@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.7.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.9...v0.7.10) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#106](https://github.com/MustardSeedNetworks/foundation/issues/106)) ([3737863](https://github.com/MustardSeedNetworks/foundation/commit/3737863963430eb645c9674156b83aa3cb842c9f))
+
+## [0.7.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.8...v0.7.9) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update npm to v12.2.0 ([#104](https://github.com/MustardSeedNetworks/foundation/issues/104)) ([8e34263](https://github.com/MustardSeedNetworks/foundation/commit/8e3426392422bf7e69afaa174e01d7ab01ee16d9))
+
+## [0.7.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.7...v0.7.8) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sys to v0.49.0 ([#109](https://github.com/MustardSeedNetworks/foundation/issues/109)) ([e1e3e99](https://github.com/MustardSeedNetworks/foundation/commit/e1e3e994a6932e71dddde70a999347f5c016daf3))
+
+## [0.7.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.6...v0.7.7) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update github actions ([#103](https://github.com/MustardSeedNetworks/foundation/issues/103)) ([6d235b7](https://github.com/MustardSeedNetworks/foundation/commit/6d235b731d66a4262fb178d6e02ac9599e0ff390))
+
+## [0.7.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.5...v0.7.6) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain ([#102](https://github.com/MustardSeedNetworks/foundation/issues/102)) ([c57f880](https://github.com/MustardSeedNetworks/foundation/commit/c57f880b9496b01556826b2b61572d5cf529a484))
+
+## [0.7.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.4...v0.7.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.2 and source-map-js 1.2.2 ([#112](https://github.com/MustardSeedNetworks/foundation/issues/112)) ([b6f2786](https://github.com/MustardSeedNetworks/foundation/commit/b6f27867addddb9cd1eab8b0be0f414d6a5244da)), closes [#111](https://github.com/MustardSeedNetworks/foundation/issues/111)
+
 ## [0.7.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.3...v0.7.4) (2026-10-04)
 
 
