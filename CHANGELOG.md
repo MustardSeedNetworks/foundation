@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.7...v0.7.8) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sys to v0.49.0 ([#109](https://github.com/MustardSeedNetworks/foundation/issues/109)) ([e1e3e99](https://github.com/MustardSeedNetworks/foundation/commit/e1e3e994a6932e71dddde70a999347f5c016daf3))
+
 ## [0.7.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.6...v0.7.7) (2026-10-15)
 
 
