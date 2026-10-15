@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.8.0...v0.9.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** the Linux fingerprint changes, so licences bound to a Linux host must be re-issued, and a host or container without /etc/machine-id cannot activate (owner decision on #108, pre-1.0, no compat path).
+
+### Bug Fixes
+
+* **license:** identify a Linux host by its machine ID and fail without one ([#121](https://github.com/MustardSeedNetworks/foundation/issues/121)) ([07a8f75](https://github.com/MustardSeedNetworks/foundation/commit/07a8f757bb9f4ae054de49a0745e33f2ba50c62b)), closes [#108](https://github.com/MustardSeedNetworks/foundation/issues/108)
+
 ## [0.8.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.10...v0.8.0) (2026-10-15)
 
 
