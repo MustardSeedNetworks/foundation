@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -21,15 +22,13 @@ import (
 
 // Fingerprint constants.
 const (
-	defaultMAC        = "00:00:00:00:00:00"
-	hashLength        = 16 // First 16 hex characters (64 bits of entropy).
-	commandTimeout    = 5  // Seconds for external command timeout.
-	splitPartsCount   = 2  // Expected parts when splitting on : or =.
-	defaultLinuxCPU   = "LINUX-DEFAULT"
-	defaultDarwinCPU  = "DARWIN-DEFAULT"
-	defaultLinuxDisk  = "LINUX-DISK"
-	defaultDarwinDisk = "DARWIN-DISK"
-	unknownSerial     = "UNKNOWN"
+	defaultMAC       = "00:00:00:00:00:00"
+	hashLength       = 16 // First 16 hex characters (64 bits of entropy).
+	commandTimeout   = 5  // Seconds for external command timeout.
+	splitPartsCount  = 2  // Expected parts when splitting on : or =.
+	defaultLinuxCPU  = "LINUX-DEFAULT"
+	defaultLinuxDisk = "LINUX-DISK"
+	unknownSerial    = "UNKNOWN"
 )
 
 // DeviceFingerprint contains hardware identifiers for device binding.
@@ -41,28 +40,40 @@ type DeviceFingerprint struct {
 	Platform   string `json:"platform"`
 }
 
+// fingerprintCache keeps the first successful fingerprint. A failed probe is
+// not cached, so a later call can still produce the real identity.
 type fingerprintCache struct {
-	once        sync.Once
+	mu          sync.Mutex
+	ok          bool
 	fingerprint DeviceFingerprint
 }
 
-func (c *fingerprintCache) get(generate func() DeviceFingerprint) *DeviceFingerprint {
-	c.once.Do(func() {
-		c.fingerprint = generate()
-	})
+func (c *fingerprintCache) get(generate func() (DeviceFingerprint, error)) (*DeviceFingerprint, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.ok {
+		fp, err := generate()
+		if err != nil {
+			return nil, err
+		}
+		c.fingerprint, c.ok = fp, true
+	}
 	result := c.fingerprint
-	return &result
+	return &result, nil
 }
 
 var processFingerprint fingerprintCache
 
 // GenerateFingerprint creates a unique device fingerprint.
-// The result is cached after the first call since hardware IDs don't change.
+// The result is cached after the first success since hardware IDs don't change.
+// It returns an error rather than a substitute identity when a required probe
+// fails: a daemon that adopted a different, valid-looking fingerprint would
+// silently lose its activation.
 func GenerateFingerprint() (*DeviceFingerprint, error) {
-	return processFingerprint.get(generateFingerprint), nil
+	return processFingerprint.get(generateFingerprint)
 }
 
-func generateFingerprint() DeviceFingerprint {
+func generateFingerprint() (DeviceFingerprint, error) {
 	fp := DeviceFingerprint{
 		MACAddress: "",
 		CPUSerial:  "",
@@ -77,10 +88,14 @@ func generateFingerprint() DeviceFingerprint {
 	}
 
 	fp.MACAddress = getPrimaryMAC()
-	fp.CPUSerial = getCPUSerial()
+	cpu, err := getCPUSerial()
+	if err != nil {
+		return DeviceFingerprint{}, err
+	}
+	fp.CPUSerial = cpu
 	fp.DiskSerial = getDiskSerial()
 
-	return fp
+	return fp, nil
 }
 
 // Hash returns a 16-character hash of the fingerprint.
@@ -139,14 +154,14 @@ func getPrimaryMAC() string {
 }
 
 // getCPUSerial returns CPU serial number (platform-specific).
-func getCPUSerial() string {
+func getCPUSerial() (string, error) {
 	switch runtime.GOOS {
 	case "linux":
-		return getLinuxCPUSerial()
+		return getLinuxCPUSerial(), nil
 	case "darwin":
 		return getDarwinCPUSerial()
 	default:
-		return unknownSerial
+		return unknownSerial, nil
 	}
 }
 
@@ -190,27 +205,31 @@ func getLinuxCPUSerial() string {
 	return defaultLinuxCPU
 }
 
-// getDarwinCPUSerial reads hardware UUID on macOS.
-func getDarwinCPUSerial() string {
+// getDarwinCPUSerial reads the hardware UUID on macOS.
+func getDarwinCPUSerial() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "ioreg", "-rd1", "-c", "IOPlatformExpertDevice").Output()
 	if err != nil {
-		return defaultDarwinCPU
+		return "", fmt.Errorf("read IOPlatformUUID: %w", err)
 	}
+	return parseIOPlatformUUID(string(out))
+}
 
-	for line := range splitLines(string(out)) {
-		if strings.Contains(line, "IOPlatformUUID") {
-			parts := strings.Split(line, "=")
-			if len(parts) == splitPartsCount {
-				uuid := strings.TrimSpace(parts[1])
-				uuid = strings.Trim(uuid, "\"")
-				return uuid
+// parseIOPlatformUUID extracts the IOPlatformUUID value from ioreg output.
+func parseIOPlatformUUID(out string) (string, error) {
+	for line := range splitLines(out) {
+		if !strings.Contains(line, `"IOPlatformUUID"`) {
+			continue
+		}
+		parts := strings.Split(line, "=")
+		if len(parts) == splitPartsCount {
+			if uuid := strings.Trim(strings.TrimSpace(parts[1]), `"`); uuid != "" {
+				return uuid, nil
 			}
 		}
 	}
-
-	return defaultDarwinCPU
+	return "", errors.New("read IOPlatformUUID: not in ioreg output")
 }
 
 // getDiskSerial returns root disk serial number.
@@ -219,7 +238,10 @@ func getDiskSerial() string {
 	case "linux":
 		return getLinuxDiskSerial()
 	case "darwin":
-		return getDarwinDiskSerial()
+		// No disk input: system_profiler can pass its timeout under launchd,
+		// and the fallback then changed the identity between daemon starts.
+		// IOPlatformUUID already identifies the Mac.
+		return ""
 	default:
 		return unknownSerial
 	}
@@ -263,40 +285,6 @@ func getLinuxDiskSerial() string {
 	}
 
 	return defaultLinuxDisk
-}
-
-// getDarwinDiskSerial reads disk serial on macOS.
-func getDarwinDiskSerial() string {
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "system_profiler", "SPSerialATADataType").Output()
-	if err == nil {
-		for line := range splitLines(string(out)) {
-			if strings.Contains(line, "Serial Number") {
-				parts := strings.Split(line, ":")
-				if len(parts) == splitPartsCount {
-					return strings.TrimSpace(parts[1])
-				}
-			}
-		}
-	}
-
-	// Try NVMe.
-	ctx2, cancel2 := context.WithTimeout(context.Background(), commandTimeout*time.Second)
-	defer cancel2()
-	out, err = exec.CommandContext(ctx2, "system_profiler", "SPNVMeDataType").Output()
-	if err == nil {
-		for line := range splitLines(string(out)) {
-			if strings.Contains(line, "Serial Number") {
-				parts := strings.Split(line, ":")
-				if len(parts) == splitPartsCount {
-					return strings.TrimSpace(parts[1])
-				}
-			}
-		}
-	}
-
-	return defaultDarwinDisk
 }
 
 // maskString masks a string for display, showing only first N chars.
