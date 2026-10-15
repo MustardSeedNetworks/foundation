@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.10...v0.8.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** the darwin fingerprint changes, so licences bound to a Mac must be re-issued (owner decision on #108, pre-1.0, no compat path).
+
+### Bug Fixes
+
+* **license:** identify a Mac by IOPlatformUUID and fail on a failed probe ([#110](https://github.com/MustardSeedNetworks/foundation/issues/110)) ([e881c3a](https://github.com/MustardSeedNetworks/foundation/commit/e881c3a7ab8411d9b1895427565c728402a7ef06))
+
 ## [0.7.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.9...v0.7.10) (2026-10-15)
 
 
