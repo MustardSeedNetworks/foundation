@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.4...v0.7.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.2 and source-map-js 1.2.2 ([#112](https://github.com/MustardSeedNetworks/foundation/issues/112)) ([b6f2786](https://github.com/MustardSeedNetworks/foundation/commit/b6f27867addddb9cd1eab8b0be0f414d6a5244da)), closes [#111](https://github.com/MustardSeedNetworks/foundation/issues/111)
+
 ## [0.7.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.3...v0.7.4) (2026-10-04)
 
 
