@@ -8,12 +8,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"iter"
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -22,13 +20,13 @@ import (
 
 // Fingerprint constants.
 const (
-	defaultMAC       = "00:00:00:00:00:00"
-	hashLength       = 16 // First 16 hex characters (64 bits of entropy).
-	commandTimeout   = 5  // Seconds for external command timeout.
-	splitPartsCount  = 2  // Expected parts when splitting on : or =.
-	defaultLinuxCPU  = "LINUX-DEFAULT"
-	defaultLinuxDisk = "LINUX-DISK"
-	unknownSerial    = "UNKNOWN"
+	defaultMAC      = "00:00:00:00:00:00"
+	hashLength      = 16 // First 16 hex characters (64 bits of entropy).
+	commandTimeout  = 5  // Seconds for external command timeout.
+	splitPartsCount = 2  // Expected parts when splitting on : or =.
+	unknownSerial   = "UNKNOWN"
+	machineIDPath   = "/etc/machine-id"
+	machineIDLength = 32 // machine-id(5): 128-bit ID as lowercase hex.
 )
 
 // DeviceFingerprint contains hardware identifiers for device binding.
@@ -153,11 +151,11 @@ func getPrimaryMAC() string {
 	return defaultMAC
 }
 
-// getCPUSerial returns CPU serial number (platform-specific).
+// getCPUSerial returns the platform's stable machine identity.
 func getCPUSerial() (string, error) {
 	switch runtime.GOOS {
 	case "linux":
-		return getLinuxCPUSerial(), nil
+		return readMachineID(machineIDPath)
 	case "darwin":
 		return getDarwinCPUSerial()
 	default:
@@ -170,39 +168,21 @@ func splitLines(s string) iter.Seq[string] {
 	return strings.SplitSeq(s, "\n")
 }
 
-// getLinuxCPUSerial reads CPU serial from /proc/cpuinfo or dmidecode.
-func getLinuxCPUSerial() string {
-	// Try /proc/cpuinfo first (works on ARM).
-	data, err := os.ReadFile("/proc/cpuinfo")
-	if err == nil {
-		for line := range splitLines(string(data)) {
-			if strings.HasPrefix(line, "Serial") {
-				parts := strings.Split(line, ":")
-				if len(parts) == splitPartsCount {
-					return strings.TrimSpace(parts[1])
-				}
-			}
-		}
+// readMachineID returns the systemd machine ID. It replaces the CPU and disk
+// probes on Linux: a packaged daemon runs as a non-root user without device
+// access, where dmidecode, product_serial and udevadm are unreadable, and a
+// probe that timed out fell through to a different source. machine-id is
+// world-readable and stable for the life of the install.
+func readMachineID(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read machine ID: %w", err)
 	}
-
-	// Try dmidecode (requires root).
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "dmidecode", "-s", "processor-id").Output()
-	if err == nil {
-		serial := strings.TrimSpace(string(out))
-		if serial != "" {
-			return serial
-		}
+	id := strings.TrimSpace(string(data))
+	if len(id) != machineIDLength || strings.Trim(id, "0123456789abcdef") != "" {
+		return "", fmt.Errorf("read machine ID: %s does not hold a 32-digit hex ID", path)
 	}
-
-	// Try /sys/class/dmi/id/product_serial.
-	data, err = os.ReadFile("/sys/class/dmi/id/product_serial")
-	if err == nil {
-		return strings.TrimSpace(string(data))
-	}
-
-	return defaultLinuxCPU
+	return id, nil
 }
 
 // getDarwinCPUSerial reads the hardware UUID on macOS.
@@ -235,56 +215,15 @@ func parseIOPlatformUUID(out string) (string, error) {
 // getDiskSerial returns root disk serial number.
 func getDiskSerial() string {
 	switch runtime.GOOS {
-	case "linux":
-		return getLinuxDiskSerial()
-	case "darwin":
-		// No disk input: system_profiler can pass its timeout under launchd,
-		// and the fallback then changed the identity between daemon starts.
-		// IOPlatformUUID already identifies the Mac.
+	case "linux", "darwin":
+		// No disk input: the probes need privileges a packaged daemon lacks
+		// or can pass their timeout under launchd, and either way the identity
+		// changed between daemon starts. The machine ID already identifies
+		// the host.
 		return ""
 	default:
 		return unknownSerial
 	}
-}
-
-// getLinuxDiskSerial reads disk serial from /sys or udevadm.
-func getLinuxDiskSerial() string {
-	// Try common disk paths.
-	diskPaths := []string{
-		"/sys/block/sda/device/serial",
-		"/sys/block/nvme0n1/device/serial",
-		"/sys/block/vda/serial",
-	}
-
-	for _, path := range diskPaths {
-		// Read from known system paths.
-		f, err := os.Open(filepath.Clean(path))
-		if err != nil {
-			continue
-		}
-		data, err := io.ReadAll(f)
-		_ = f.Close()
-		if err == nil {
-			serial := strings.TrimSpace(string(data))
-			if serial != "" {
-				return serial
-			}
-		}
-	}
-
-	// Try udevadm.
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "udevadm", "info", "--query=property", "--name=/dev/sda").Output()
-	if err == nil {
-		for line := range splitLines(string(out)) {
-			if serial, found := strings.CutPrefix(line, "ID_SERIAL="); found {
-				return serial
-			}
-		}
-	}
-
-	return defaultLinuxDisk
 }
 
 // maskString masks a string for display, showing only first N chars.

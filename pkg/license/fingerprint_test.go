@@ -5,6 +5,9 @@ package license
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -135,6 +138,45 @@ func TestParseIOPlatformUUID(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Fatalf("parseIOPlatformUUID() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Linux identity is the machine ID alone; anything that is not one is an
+// error, never a stand-in, so the activation cannot silently re-key.
+func TestReadMachineID(t *testing.T) {
+	t.Parallel()
+
+	const id = "0123456789abcdef0123456789abcdef"
+	tests := []struct {
+		name    string
+		content *string
+		want    string
+		wantErr bool
+	}{
+		{name: "systemd file", content: new(id + "\n"), want: id},
+		{name: "missing file", wantErr: true},
+		{name: "empty file", content: new(""), wantErr: true},
+		{name: "first boot placeholder", content: new("uninitialized\n"), wantErr: true},
+		{name: "uppercase digits", content: new(strings.ToUpper(id)), wantErr: true},
+		{name: "short id", content: new(id[:31]), wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "machine-id")
+			if tt.content != nil {
+				if err := os.WriteFile(path, []byte(*tt.content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := readMachineID(path)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("readMachineID() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Fatalf("readMachineID() = %q, want %q", got, tt.want)
 			}
 		})
 	}
