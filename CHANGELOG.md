@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.9...v0.7.10) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#106](https://github.com/MustardSeedNetworks/foundation/issues/106)) ([3737863](https://github.com/MustardSeedNetworks/foundation/commit/3737863963430eb645c9674156b83aa3cb842c9f))
+
 ## [0.7.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.8...v0.7.9) (2026-10-15)
 
 
