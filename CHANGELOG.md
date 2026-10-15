@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.6...v0.7.7) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update github actions ([#103](https://github.com/MustardSeedNetworks/foundation/issues/103)) ([6d235b7](https://github.com/MustardSeedNetworks/foundation/commit/6d235b731d66a4262fb178d6e02ac9599e0ff390))
+
 ## [0.7.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.5...v0.7.6) (2026-10-15)
 
 
