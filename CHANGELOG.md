@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.8...v0.7.9) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update npm to v12.2.0 ([#104](https://github.com/MustardSeedNetworks/foundation/issues/104)) ([8e34263](https://github.com/MustardSeedNetworks/foundation/commit/8e3426392422bf7e69afaa174e01d7ab01ee16d9))
+
 ## [0.7.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.7...v0.7.8) (2026-10-15)
 
 
