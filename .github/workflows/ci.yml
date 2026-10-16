@@ -180,6 +180,12 @@ jobs:
       - name: Format check
         run: test -z "$(gofmt -l .)"
 
+      - name: Enforce customer-facing vocabulary policy
+        run: python3 scripts/check-banned-vocabulary.py
+
+      - name: File-size gate (baseline-ratchet)
+        run: ./scripts/check-file-size.sh
+
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
