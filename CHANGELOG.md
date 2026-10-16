@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.2...v0.9.3) (2026-10-16)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain to v5 ([#105](https://github.com/MustardSeedNetworks/foundation/issues/105)) ([fbae398](https://github.com/MustardSeedNetworks/foundation/commit/fbae39819f0614d69bd86a96c41b0edbc6b328ba))
+
 ## [0.9.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.1...v0.9.2) (2026-10-16)
 
 
