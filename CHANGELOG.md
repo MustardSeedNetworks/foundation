@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.1...v0.9.2) (2026-10-16)
+
+
+### Continuous Integration
+
+* gate unchanged paths and set job timeouts ([#127](https://github.com/MustardSeedNetworks/foundation/issues/127)) ([0cff0c8](https://github.com/MustardSeedNetworks/foundation/commit/0cff0c83dedec8b4b69be16aa0f155cdc92b9cd6))
+
 ## [0.9.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.0...v0.9.1) (2026-10-16)
 
 
