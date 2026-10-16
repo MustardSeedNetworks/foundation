@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.9.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.2...v0.9.3) (2026-10-16)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain to v5 ([#105](https://github.com/MustardSeedNetworks/foundation/issues/105)) ([fbae398](https://github.com/MustardSeedNetworks/foundation/commit/fbae39819f0614d69bd86a96c41b0edbc6b328ba))
+
+## [0.9.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.1...v0.9.2) (2026-10-16)
+
+
+### Continuous Integration
+
+* gate unchanged paths and set job timeouts ([#127](https://github.com/MustardSeedNetworks/foundation/issues/127)) ([0cff0c8](https://github.com/MustardSeedNetworks/foundation/commit/0cff0c83dedec8b4b69be16aa0f155cdc92b9cd6))
+
+## [0.9.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.0...v0.9.1) (2026-10-16)
+
+
+### Continuous Integration
+
+* add the governance files fleet conformance requires (F-2 slice 2b) ([#125](https://github.com/MustardSeedNetworks/foundation/issues/125)) ([b7a829b](https://github.com/MustardSeedNetworks/foundation/commit/b7a829bd0f4a319be9058f8b72a97497fd33fdb2))
+
+## [0.9.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.8.0...v0.9.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** the Linux fingerprint changes, so licences bound to a Linux host must be re-issued, and a host or container without /etc/machine-id cannot activate (owner decision on #108, pre-1.0, no compat path).
+
+### Bug Fixes
+
+* **license:** identify a Linux host by its machine ID and fail without one ([#121](https://github.com/MustardSeedNetworks/foundation/issues/121)) ([07a8f75](https://github.com/MustardSeedNetworks/foundation/commit/07a8f757bb9f4ae054de49a0745e33f2ba50c62b)), closes [#108](https://github.com/MustardSeedNetworks/foundation/issues/108)
+
+## [0.8.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.10...v0.8.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** the darwin fingerprint changes, so licences bound to a Mac must be re-issued (owner decision on #108, pre-1.0, no compat path).
+
+### Bug Fixes
+
+* **license:** identify a Mac by IOPlatformUUID and fail on a failed probe ([#110](https://github.com/MustardSeedNetworks/foundation/issues/110)) ([e881c3a](https://github.com/MustardSeedNetworks/foundation/commit/e881c3a7ab8411d9b1895427565c728402a7ef06))
+
+## [0.7.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.9...v0.7.10) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#106](https://github.com/MustardSeedNetworks/foundation/issues/106)) ([3737863](https://github.com/MustardSeedNetworks/foundation/commit/3737863963430eb645c9674156b83aa3cb842c9f))
+
 ## [0.7.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.8...v0.7.9) (2026-10-15)
 
 

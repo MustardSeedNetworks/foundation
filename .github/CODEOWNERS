@@ -1,0 +1,15 @@
+# Default owner for all files
+* @krisarmstrong
+
+# CI, release and supply-chain configuration. A change here can weaken a gate
+# without touching the code it gates.
+/.github/       @krisarmstrong
+/scripts/       @krisarmstrong
+/.golangci.yml  @krisarmstrong
+
+# The shared crypto every product trusts: licence verification and CSRF.
+/pkg/license/   @krisarmstrong
+/pkg/csrf/      @krisarmstrong
+
+# Licensing and legal text.
+/LICENSE        @krisarmstrong

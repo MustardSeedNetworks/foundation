@@ -1,0 +1,10 @@
+# Exact, reviewable exceptions for text that is not current product copy.
+# Format: git path pattern | why the immutable or developer-only text is exempt
+#
+# Add an entry only when a real violation is found AND the text is genuinely
+# immutable or developer-only. Reasons avoid quoting the flagged terms, so this
+# file does not trip the checker it configures.
+
+LICENSE | unmodified BUSL-1.1 legal source text
+scripts/banned-vocab.txt | policy term source
+ui/package-lock.json | generated lockfile; hits are upstream package names
