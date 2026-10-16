@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.0...v0.9.1) (2026-10-16)
+
+
+### Continuous Integration
+
+* add the governance files fleet conformance requires (F-2 slice 2b) ([#125](https://github.com/MustardSeedNetworks/foundation/issues/125)) ([b7a829b](https://github.com/MustardSeedNetworks/foundation/commit/b7a829bd0f4a319be9058f8b72a97497fd33fdb2))
+
 ## [0.9.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.8.0...v0.9.0) (2026-10-15)
 
 
