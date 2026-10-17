@@ -49,7 +49,13 @@ test('keeps Go root tags and releases UI changes independently', () => {
   expect(config).toMatchObject({
     packages: {
       '.': { 'release-type': 'go', 'include-component-in-tag': false, 'exclude-paths': ['ui'] },
-      ui: { 'release-type': 'node', component: 'auth-ui', 'include-component-in-tag': true },
+      ui: {
+        'release-type': 'node',
+        component: 'auth-ui',
+        'include-component-in-tag': true,
+        // release-please starts a new package at 1.0.0; the fleet stays 0.x until the owner declares 1.x.
+        'initial-version': '0.1.0',
+      },
     },
   });
   expect(config).not.toMatchObject({ 'separate-pull-requests': true });
