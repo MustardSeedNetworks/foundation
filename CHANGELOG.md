@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.4...v0.13.5) (2026-10-17)
+
+
+### Continuous Integration
+
+* stop re-running the full suite on push to main ([#153](https://github.com/MustardSeedNetworks/foundation/issues/153)) ([1b5f7a0](https://github.com/MustardSeedNetworks/foundation/commit/1b5f7a0600ebb99d99c658ce249935937795e998))
+
 ## [0.13.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.3...v0.13.4) (2026-10-17)
 
 
