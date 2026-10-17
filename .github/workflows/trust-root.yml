@@ -1,0 +1,33 @@
+# =============================================================================
+# Sigstore trusted-root drift
+# =============================================================================
+# pkg/release embeds the Sigstore public-good trusted root and accepts no
+# operator-supplied one (stem ADR-0012). When Sigstore rotates its keys, every
+# product built before the rotation refuses releases signed after it. This
+# fetches the root through TUF weekly and goes red when it differs from the
+# embedded copy, so the rotation becomes a PR rather than a field failure.
+# =============================================================================
+
+name: Trust root
+
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Weekly on Monday at 7am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Embedded root matches TUF
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-go
+      - run: go test -run TestEmbeddedTrustedRootIsCurrent -v ./pkg/release
+        env:
+          FOUNDATION_LIVE_TRUST_ROOT: "1"
