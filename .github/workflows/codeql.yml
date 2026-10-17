@@ -50,7 +50,13 @@ jobs:
       - name: Autobuild
         uses: github/codeql-action/autobuild@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
 
+      # Analysis still runs and still fails the job. The upload does not, on
+      # merge_group: the queue ref can be deleted before code scanning
+      # accepts the SARIF, which fails the job with "ref not found".
+      # 'never' is truthy, so the &&/|| pair selects it on that event and
+      # 'always' otherwise.
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           category: "/language:go"
+          upload: ${{ github.event_name == 'merge_group' && 'never' || 'always' }}

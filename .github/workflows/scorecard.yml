@@ -48,7 +48,14 @@ jobs:
           # repos; only metadata about checks is published, no source.
           publish_results: true
 
+      # The merge queue deletes its temporary ref as soon as the group
+      # finishes, often before this upload runs. Code scanning then fails
+      # the job with "ref not found". The analysis above still runs; only
+      # the upload is skipped on that event. This workflow is not on the
+      # merge_group trigger today — the guard is here so enabling a queue
+      # cannot turn a deleted ref into a red job.
       - name: Upload SARIF to GitHub Code Scanning
+        if: github.event_name != 'merge_group'
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: results.sarif
