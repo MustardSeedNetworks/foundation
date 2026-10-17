@@ -314,11 +314,15 @@ jobs:
   # Fleet-shared Semgrep gate. It scans with p/golang among its configs, so a
   # Go-only module is in scope; the reusable workflow is the single edit point
   # for the pinned version and severity policy across the fleet.
+  #
+  # Pinned past v1.14.0 to .github#174 (untagged). That commit skips the SARIF
+  # upload on merge_group — the queue ref is deleted before code scanning
+  # accepts it — and still fails the job on ERROR findings.
   semgrep:
     name: Semgrep SAST
     needs: [changes]
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci_infra == 'true'
-    uses: MustardSeedNetworks/.github/.github/workflows/semgrep.yml@048d173dd72ca0f9e5fa832fb5b9fd2a6447e5e9 # v1.13.0
+    uses: MustardSeedNetworks/.github/.github/workflows/semgrep.yml@8f012be52b47d0be45104b0ed8d3eb72f20840f5 # .github#174, untagged
     permissions:
       contents: read
       security-events: write
