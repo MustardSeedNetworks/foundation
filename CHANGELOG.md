@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.11.0...v0.12.0) (2026-10-17)
+
+
+### Features
+
+* prepare independent auth UI releases ([#91](https://github.com/MustardSeedNetworks/foundation/issues/91)) ([3cd7291](https://github.com/MustardSeedNetworks/foundation/commit/3cd72919eb520090cdf981df8b7595ad473b0743))
+
+
+### Continuous Integration
+
+* wire the fleet process workflows foundation lacks (F-2 slice 1) ([#124](https://github.com/MustardSeedNetworks/foundation/issues/124)) ([93655a3](https://github.com/MustardSeedNetworks/foundation/commit/93655a3a657faf2e74853f11d5b574d9e7c17ef6))
+
+
+### Miscellaneous
+
+* **deps:** update actions/checkout action to v7.0.1 ([#140](https://github.com/MustardSeedNetworks/foundation/issues/140)) ([cd9392d](https://github.com/MustardSeedNetworks/foundation/commit/cd9392d4df5b6782abf83aa5670dc928c9824e5f))
+
 ## [0.11.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.10.0...v0.11.0) (2026-10-17)
 
 
