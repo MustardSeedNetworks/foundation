@@ -335,6 +335,17 @@ jobs:
     permissions:
       contents: read
 
+  # Fleet-shared: refuses a PR that introduces a vulnerable or badly-licensed
+  # dependency, the gap govulncheck leaves (it only sees what already merged).
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    uses: MustardSeedNetworks/.github/.github/workflows/dependency-review.yml@76eb579ee0cbdef0a2aef9d9df1ae9ca38cad6bd # v1.14.0
+    permissions:
+      contents: read
+      # Only to post the findings comment when it fails.
+      pull-requests: write
+
   # CodeQL's own job reports success when the *analysis* succeeds, whether or
   # not it found anything -- so without this the repository could carry open
   # High alerts with every check green. Scoped to CodeQL rather than "any High
@@ -405,6 +416,7 @@ jobs:
       - security
       - semgrep
       - license-check
+      - dependency-review
       - codeql-alert-gate
       - workflow-lint
     if: always()
