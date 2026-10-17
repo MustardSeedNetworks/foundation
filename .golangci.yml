@@ -26,6 +26,10 @@ linters:
     - errorlint # broken errors.Is/As and %w wrapping
     - noctx # HTTP requests without context — no cancellation or timeout
     - nilerr # returns nil after checking err != nil
+    # The fleet's minimum tier (.github/golangci-tier.txt) requires these two.
+    # Nothing here touches database/sql yet; they cost nothing until it does.
+    - rowserrcheck # unchecked sql.Rows.Err
+    - sqlclosecheck # unclosed sql.Rows / sql.Stmt
   exclusions:
     presets:
       - std-error-handling
