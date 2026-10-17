@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.0...v0.13.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **release:** start auth-ui at 0.1.0 and undo the 1.x releases ([#143](https://github.com/MustardSeedNetworks/foundation/issues/143)) ([fae26a4](https://github.com/MustardSeedNetworks/foundation/commit/fae26a473043385d0924485af68bf14d408c1f80))
+
 ## [0.13.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.12.0...v0.13.0) (2026-10-17)
 
 
