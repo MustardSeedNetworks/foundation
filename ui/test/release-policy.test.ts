@@ -10,10 +10,10 @@ const metadata = {
     url: 'https://github.com/MustardSeedNetworks/foundation.git',
     directory: 'ui',
   },
-  publishConfig: { access: 'public', registry: 'https://registry.npmjs.org/' },
+  private: true,
 };
 
-test('accepts the exact stable UI release and public package identity', () => {
+test('accepts the exact stable UI release and package identity', () => {
   expect(() => validateRelease('auth-ui-v0.1.0', metadata)).not.toThrow();
 });
 
@@ -30,15 +30,16 @@ test.each([
 test.each([
   null,
   {},
-  { ...metadata, private: true },
+  { ...metadata, private: false },
+  { ...metadata, private: undefined },
   { ...metadata, name: '@other/auth-ui' },
   { ...metadata, repository: { ...metadata.repository, directory: '.' } },
   {
     ...metadata,
     repository: { ...metadata.repository, url: 'https://github.com/other/foundation.git' },
   },
-  { ...metadata, publishConfig: { access: 'restricted' } },
-])('rejects unsafe publication metadata %#', (value) => {
+  { ...metadata, publishConfig: { access: 'public', registry: 'https://registry.npmjs.org/' } },
+])('rejects metadata that could reach a registry or names another package %#', (value) => {
   expect(() => validateRelease('auth-ui-v0.1.0', value)).toThrow();
 });
 
