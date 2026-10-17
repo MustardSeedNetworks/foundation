@@ -324,7 +324,7 @@ func (m *Manager) StartTrial() *ActivationResult {
 		trialFeatures = nil
 	}
 
-	m.state = &ActivationState{
+	state := &ActivationState{
 		LicenseKey:     "",
 		DeviceHash:     m.fingerprint.Hash(),
 		Tier:           m.policy.TrialTier,
@@ -333,14 +333,17 @@ func (m *Manager) StartTrial() *ActivationResult {
 		Features:       trialFeatures,
 	}
 
-	if saveErr := m.saveState(); saveErr != nil {
-		m.loadStatus, m.loadErr = StatusUnverified, saveErr
+	// The manager adopts the trial only once it is on disk, so a failed write
+	// (full disk, read-only mount) leaves memory matching the file and a
+	// retry can still succeed (#41).
+	if saveErr := m.saveState(state); saveErr != nil {
 		return &ActivationResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to save trial state: %v", saveErr),
 			Tier:    tierInvalid,
 		}
 	}
+	m.state = state
 	m.loadStatus, m.loadErr = StatusLoaded, nil
 
 	return &ActivationResult{
@@ -366,7 +369,7 @@ func (m *Manager) Activate(licenseKey string) *ActivationResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.state = &ActivationState{
+	state := &ActivationState{
 		LicenseKey:      info.Key,
 		DeviceHash:      m.fingerprint.Hash(),
 		Tier:            info.Tier,
@@ -377,14 +380,14 @@ func (m *Manager) Activate(licenseKey string) *ActivationResult {
 		Features:        info.Features,
 	}
 
-	if saveErr := m.saveState(); saveErr != nil {
-		m.loadStatus, m.loadErr = StatusUnverified, saveErr
+	if saveErr := m.saveState(state); saveErr != nil {
 		return &ActivationResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to save activation: %v", saveErr),
 			Tier:    tierInvalid,
 		}
 	}
+	m.state = state
 	m.loadStatus, m.loadErr = StatusLoaded, nil
 
 	return &ActivationResult{
@@ -435,7 +438,7 @@ func (m *Manager) CheckIn() *ActivationResult {
 		}
 	}
 	m.state.LastValidatedAt = time.Now()
-	_ = m.saveState()
+	_ = m.saveState(m.state)
 	return &ActivationResult{
 		Success: true,
 		Message: "License validated successfully",
@@ -539,15 +542,12 @@ func stripGrant(state *ActivationState, reason error) (LoadStatus, error) {
 	return StatusUnverified, fmt.Errorf("license state is not backed by a valid license: %w", reason)
 }
 
-func (m *Manager) saveState() error {
-	if m.state == nil {
-		return nil
-	}
+func (m *Manager) saveState(state *ActivationState) error {
 	if mkdirErr := os.MkdirAll(m.configDir, 0o700); mkdirErr != nil {
 		return fmt.Errorf("failed to create config directory: %w", mkdirErr)
 	}
 
-	data, marshalErr := json.Marshal(m.state)
+	data, marshalErr := json.Marshal(state)
 	if marshalErr != nil {
 		return fmt.Errorf("failed to marshal license state: %w", marshalErr)
 	}

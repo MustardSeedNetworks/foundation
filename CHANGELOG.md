@@ -1,5 +1,132 @@
 # Changelog
 
+## [0.11.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.10.0...v0.11.0) (2026-10-17)
+
+
+### Features
+
+* **corebluetooth:** bind CoreBluetooth for LE scanning on macOS ([#138](https://github.com/MustardSeedNetworks/foundation/issues/138)) ([40263cd](https://github.com/MustardSeedNetworks/foundation/commit/40263cdc6b70ea56ecd9651cef246b84b25cc2c3)), closes [#137](https://github.com/MustardSeedNetworks/foundation/issues/137)
+
+## [0.10.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.4...v0.10.0) (2026-10-17)
+
+
+### Features
+
+* **release:** verify release artifacts for in-place updates ([#135](https://github.com/MustardSeedNetworks/foundation/issues/135)) ([6f00869](https://github.com/MustardSeedNetworks/foundation/commit/6f00869ad809685de0474bf3ab4e0a55daa145c9))
+
+## [0.9.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.3...v0.9.4) (2026-10-16)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#119](https://github.com/MustardSeedNetworks/foundation/issues/119)) ([4512dad](https://github.com/MustardSeedNetworks/foundation/commit/4512dad90aced8ec55717ee3c7d96cfc0726cf32))
+
+## [0.9.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.2...v0.9.3) (2026-10-16)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain to v5 ([#105](https://github.com/MustardSeedNetworks/foundation/issues/105)) ([fbae398](https://github.com/MustardSeedNetworks/foundation/commit/fbae39819f0614d69bd86a96c41b0edbc6b328ba))
+
+## [0.9.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.1...v0.9.2) (2026-10-16)
+
+
+### Continuous Integration
+
+* gate unchanged paths and set job timeouts ([#127](https://github.com/MustardSeedNetworks/foundation/issues/127)) ([0cff0c8](https://github.com/MustardSeedNetworks/foundation/commit/0cff0c83dedec8b4b69be16aa0f155cdc92b9cd6))
+
+## [0.9.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.0...v0.9.1) (2026-10-16)
+
+
+### Continuous Integration
+
+* add the governance files fleet conformance requires (F-2 slice 2b) ([#125](https://github.com/MustardSeedNetworks/foundation/issues/125)) ([b7a829b](https://github.com/MustardSeedNetworks/foundation/commit/b7a829bd0f4a319be9058f8b72a97497fd33fdb2))
+
+## [0.9.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.8.0...v0.9.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** the Linux fingerprint changes, so licences bound to a Linux host must be re-issued, and a host or container without /etc/machine-id cannot activate (owner decision on #108, pre-1.0, no compat path).
+
+### Bug Fixes
+
+* **license:** identify a Linux host by its machine ID and fail without one ([#121](https://github.com/MustardSeedNetworks/foundation/issues/121)) ([07a8f75](https://github.com/MustardSeedNetworks/foundation/commit/07a8f757bb9f4ae054de49a0745e33f2ba50c62b)), closes [#108](https://github.com/MustardSeedNetworks/foundation/issues/108)
+
+## [0.8.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.10...v0.8.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** the darwin fingerprint changes, so licences bound to a Mac must be re-issued (owner decision on #108, pre-1.0, no compat path).
+
+### Bug Fixes
+
+* **license:** identify a Mac by IOPlatformUUID and fail on a failed probe ([#110](https://github.com/MustardSeedNetworks/foundation/issues/110)) ([e881c3a](https://github.com/MustardSeedNetworks/foundation/commit/e881c3a7ab8411d9b1895427565c728402a7ef06))
+
+## [0.7.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.9...v0.7.10) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#106](https://github.com/MustardSeedNetworks/foundation/issues/106)) ([3737863](https://github.com/MustardSeedNetworks/foundation/commit/3737863963430eb645c9674156b83aa3cb842c9f))
+
+## [0.7.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.8...v0.7.9) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update npm to v12.2.0 ([#104](https://github.com/MustardSeedNetworks/foundation/issues/104)) ([8e34263](https://github.com/MustardSeedNetworks/foundation/commit/8e3426392422bf7e69afaa174e01d7ab01ee16d9))
+
+## [0.7.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.7...v0.7.8) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sys to v0.49.0 ([#109](https://github.com/MustardSeedNetworks/foundation/issues/109)) ([e1e3e99](https://github.com/MustardSeedNetworks/foundation/commit/e1e3e994a6932e71dddde70a999347f5c016daf3))
+
+## [0.7.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.6...v0.7.7) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update github actions ([#103](https://github.com/MustardSeedNetworks/foundation/issues/103)) ([6d235b7](https://github.com/MustardSeedNetworks/foundation/commit/6d235b731d66a4262fb178d6e02ac9599e0ff390))
+
+## [0.7.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.5...v0.7.6) (2026-10-15)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain ([#102](https://github.com/MustardSeedNetworks/foundation/issues/102)) ([c57f880](https://github.com/MustardSeedNetworks/foundation/commit/c57f880b9496b01556826b2b61572d5cf529a484))
+
+## [0.7.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.4...v0.7.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.2 and source-map-js 1.2.2 ([#112](https://github.com/MustardSeedNetworks/foundation/issues/112)) ([b6f2786](https://github.com/MustardSeedNetworks/foundation/commit/b6f27867addddb9cd1eab8b0be0f414d6a5244da)), closes [#111](https://github.com/MustardSeedNetworks/foundation/issues/111)
+
+## [0.7.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.3...v0.7.4) (2026-10-04)
+
+
+### Bug Fixes
+
+* **license:** adopt a new activation state only once it is saved ([#100](https://github.com/MustardSeedNetworks/foundation/issues/100)) ([52bbd60](https://github.com/MustardSeedNetworks/foundation/commit/52bbd60c9aa5d91747275d63951d337d5023041f)), closes [#41](https://github.com/MustardSeedNetworks/foundation/issues/41)
+
+## [0.7.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.2...v0.7.3) (2026-10-04)
+
+
+### Continuous Integration
+
+* pin the license gate to the release that excludes the project itself ([#98](https://github.com/MustardSeedNetworks/foundation/issues/98)) ([5e286ec](https://github.com/MustardSeedNetworks/foundation/commit/5e286ecdc9b69cdadea0cfc353eb9c9640824f94))
+
+## [0.7.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.1...v0.7.2) (2026-10-02)
+
+
+### Documentation
+
+* **license:** name foundation as the Licensed Work ([#95](https://github.com/MustardSeedNetworks/foundation/issues/95)) ([161ff8f](https://github.com/MustardSeedNetworks/foundation/commit/161ff8f987d9380ce744ace12a53d3a2b08753ae))
+
 ## [0.7.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.7.0...v0.7.1) (2026-09-30)
 
 

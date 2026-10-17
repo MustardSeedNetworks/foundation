@@ -1,0 +1,38 @@
+# Vocabulary banned from customer-facing copy, one term per line.
+#
+# Canonical for the fleet. Mirrors the banned list in CLAUDE.md, which applies
+# to product code, marketing, internal docs, READMEs and CHANGELOGs with no
+# per-product exception — so this file has no business differing between
+# repos, and it did: seed banned AI and Codex, stem and niac did not.
+#
+# Matched case-insensitively with non-letter boundaries, so `AI` does not match
+# `maintained` and `Pro` does not match `Protocol`.
+AI
+AI-powered
+AI-driven
+powered by AI
+machine learning
+LLM
+Claude
+Codex
+Anthropic
+MCP
+natural language query
+magic
+revolutionary
+disruptive
+next-gen
+best-in-class
+world-class
+industry-leading
+game-changing
+cutting-edge
+leverage
+synergy
+open source
+open-source
+código abierto
+fuente abierta
+Premium
+Certify tier
+TestSuite
