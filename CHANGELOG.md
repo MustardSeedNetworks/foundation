@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.4...v0.10.0) (2026-10-17)
+
+
+### Features
+
+* **release:** verify release artifacts for in-place updates ([#135](https://github.com/MustardSeedNetworks/foundation/issues/135)) ([6f00869](https://github.com/MustardSeedNetworks/foundation/commit/6f00869ad809685de0474bf3ab4e0a55daa145c9))
+
 ## [0.9.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.9.3...v0.9.4) (2026-10-16)
 
 
