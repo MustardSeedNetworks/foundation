@@ -169,9 +169,10 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # pkg/corewlan's CoreWLAN binding is behind //go:build darwin, so the job
-  # above only ever compiles the !darwin stub — a break in the cgo/Objective-C
-  # path would still show a green check. This job builds the real thing.
+  # pkg/corewlan's CoreWLAN and pkg/corebluetooth's CoreBluetooth bindings are
+  # behind //go:build darwin, so the job above only ever compiles the !darwin
+  # stubs — a break in the cgo/Objective-C path would still show a green
+  # check. This job builds the real thing.
   build-test-darwin:
     name: Build & Test (macOS)
     runs-on: macos-latest
@@ -187,9 +188,9 @@ jobs:
       - run: go vet ./...
       # Linking, not just compiling, is what proves the -framework LDFLAGS
       # resolve: `go build` of a library package stops after the ObjC compile.
-      # The external corewlan_test package pulls the darwin implementation into
-      # a linked test binary, so this covers both. The tests are pure decoding,
-      # so the runner needs no Wi-Fi adapter and no Location Services grant.
+      # The external _test packages pull the darwin implementations into
+      # linked test binaries, so this covers both. The tests are pure decoding,
+      # so the runner needs no radio and no Location Services or Bluetooth grant.
       - run: go test -race ./...
       # macos-latest is arm64; products importing foundation still ship a
       # darwin/amd64 slice. Xcode carries both, so link that one too.
@@ -197,7 +198,9 @@ jobs:
         env:
           CGO_ENABLED: '1'
           GOARCH: amd64
-        run: go test -c -o /dev/null ./pkg/corewlan
+        run: |
+          go test -c -o /dev/null ./pkg/corewlan
+          go test -c -o /dev/null ./pkg/corebluetooth
 
   # pkg/instance's LockFileEx path is behind the _windows.go filename suffix,
   # so the Linux and macOS jobs above only ever build the flock implementation
