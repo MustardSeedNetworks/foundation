@@ -17,9 +17,10 @@
 # by skipping. release-please is idempotent, so a periodic run is free of false
 # positives and the skipped release self-heals within the interval.
 #
-# The Go module ships by tag. The independently versioned UI package publishes
-# through publish-auth-ui.yml. The App token allows release PRs to receive CI
-# and published-release events to trigger that separately gated workflow.
+# The Go module ships by tag. The independently versioned UI package ships as
+# an asset on its auth-ui-v* release, attached by attach-auth-ui.yml. The App
+# token allows release PRs to receive CI and published-release events to
+# trigger that workflow.
 # =============================================================================
 
 name: Release Please
