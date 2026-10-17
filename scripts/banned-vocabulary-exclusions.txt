@@ -8,3 +8,4 @@
 LICENSE | unmodified BUSL-1.1 legal source text
 scripts/banned-vocab.txt | policy term source
 ui/package-lock.json | generated lockfile; hits are upstream package names
+go.sum | generated module checksums; hits are substrings of base64 hashes
