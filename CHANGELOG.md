@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.2...v0.13.3) (2026-10-17)
+
+
+### Continuous Integration
+
+* pin semgrep workflow that skips merge-group uploads ([#148](https://github.com/MustardSeedNetworks/foundation/issues/148)) ([18cb698](https://github.com/MustardSeedNetworks/foundation/commit/18cb69836a1e1101592490d3440ac4aff8b5b046))
+
 ## [0.13.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.1...v0.13.2) (2026-10-17)
 
 
