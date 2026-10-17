@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.0...auth-ui-v0.1.1) (2026-10-17)
+
+
+### Miscellaneous
+
+* **deps:** update dependency @types/node to v26.6.5 ([#131](https://github.com/MustardSeedNetworks/foundation/issues/131)) ([4563cad](https://github.com/MustardSeedNetworks/foundation/commit/4563cad8096feea4eb641e89f2c24f4c0df3692d))
+
 ## 0.1.0 (2026-10-17)
 
 

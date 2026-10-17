@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.1...v0.13.2) (2026-10-17)
+
+
+### Continuous Integration
+
+* rebase renovate when behind and guard sarif uploads ([#146](https://github.com/MustardSeedNetworks/foundation/issues/146)) ([9a5d108](https://github.com/MustardSeedNetworks/foundation/commit/9a5d108450e045b20d2bb3f145acfc4165cd81c8))
+
 ## [0.13.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.0...v0.13.1) (2026-10-17)
 
 
