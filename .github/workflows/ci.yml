@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # No push trigger. The pull request already ran this suite, and running it
+  # again on main filled the org's 20-job cap. Foundation has no merge queue
+  # (release-please uses --auto --squash, which a queue rejects), so main is
+  # not re-tested here. ci-smoke.yml is the success release-please waits for.
   pull_request:
     branches: [main]
   # Required for the merge queue: `CI Complete` is a required status check, so
