@@ -1,3 +1,5 @@
 # Byte-for-byte golden fixtures: a CRLF checkout on Windows would change them.
 pkg/httpserver/route/openapi/testdata/** -text
 ui/** text eol=lf
+# Signed release fixtures: the signature covers the exact bytes.
+pkg/release/testdata/** -text

@@ -32,11 +32,13 @@ func TestParseSource(t *testing.T) {
 		t.Errorf("mirror source = %+v", ms)
 	}
 
-	dir, err := ParseSource("/srv/stem/../stem-releases", repo, nil)
+	root := t.TempDir()
+	sep := string(filepath.Separator)
+	dir, err := ParseSource(root+sep+"stem"+sep+".."+sep+"stem-releases", repo, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != dirSource("/srv/stem-releases") {
+	if dir != dirSource(filepath.Join(root, "stem-releases")) {
 		t.Errorf("dir source = %q", dir)
 	}
 
