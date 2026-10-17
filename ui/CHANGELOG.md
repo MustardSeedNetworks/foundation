@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.0](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v1.0.0...auth-ui-v1.1.0) (2026-10-17)
+
+
+### Features
+
+* prepare independent auth UI releases ([#91](https://github.com/MustardSeedNetworks/foundation/issues/91)) ([3cd7291](https://github.com/MustardSeedNetworks/foundation/commit/3cd72919eb520090cdf981df8b7595ad473b0743))
+* **ui:** bootstrap shared authentication package ([#88](https://github.com/MustardSeedNetworks/foundation/issues/88)) ([e21098e](https://github.com/MustardSeedNetworks/foundation/commit/e21098ec5b82149c1bb479b2987f6c44b2f1d961))
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.2 and source-map-js 1.2.2 ([#112](https://github.com/MustardSeedNetworks/foundation/issues/112)) ([b6f2786](https://github.com/MustardSeedNetworks/foundation/commit/b6f27867addddb9cd1eab8b0be0f414d6a5244da)), closes [#111](https://github.com/MustardSeedNetworks/foundation/issues/111)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#106](https://github.com/MustardSeedNetworks/foundation/issues/106)) ([3737863](https://github.com/MustardSeedNetworks/foundation/commit/3737863963430eb645c9674156b83aa3cb842c9f))
+* **deps:** lock file maintenance ([#119](https://github.com/MustardSeedNetworks/foundation/issues/119)) ([4512dad](https://github.com/MustardSeedNetworks/foundation/commit/4512dad90aced8ec55717ee3c7d96cfc0726cf32))
+* **deps:** update frontend toolchain ([#102](https://github.com/MustardSeedNetworks/foundation/issues/102)) ([c57f880](https://github.com/MustardSeedNetworks/foundation/commit/c57f880b9496b01556826b2b61572d5cf529a484))
+* **deps:** update frontend toolchain to v5 ([#105](https://github.com/MustardSeedNetworks/foundation/issues/105)) ([fbae398](https://github.com/MustardSeedNetworks/foundation/commit/fbae39819f0614d69bd86a96c41b0edbc6b328ba))
+* **deps:** update npm to v12.2.0 ([#104](https://github.com/MustardSeedNetworks/foundation/issues/104)) ([8e34263](https://github.com/MustardSeedNetworks/foundation/commit/8e3426392422bf7e69afaa174e01d7ab01ee16d9))
+* release main ([#141](https://github.com/MustardSeedNetworks/foundation/issues/141)) ([0d56e58](https://github.com/MustardSeedNetworks/foundation/commit/0d56e58b10a7da7960fd86b02b4f72a1362b94f6))
+
 ## 1.0.0 (2026-10-17)
 
 
