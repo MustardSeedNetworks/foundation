@@ -17,3 +17,10 @@ No token-bearing result is part of the shared interface.
 `scripts/test-package.ts` installs the actual packed artifact into an isolated
 consumer, checks its license, compiles against its types and imports its runtime.
 `scripts/prepare-package.ts` includes the repository license unchanged.
+
+## Release verification
+
+`scripts/release-policy.ts` validates stable UI release tags against package
+identity, version and publication destination. `publish-auth-ui.yml` publishes
+only the tarball retained by the isolated consumer check, behind the explicit
+repository activation gate and protected-environment setup documented in README.

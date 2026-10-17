@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -84,6 +84,9 @@ if (typeof createPasskeyCredential !== 'function' || typeof getPasskeyCredential
     { cwd: consumer, stdio: 'inherit' },
   );
   execFileSync(process.execPath, ['consumer.ts'], { cwd: consumer, stdio: 'inherit' });
+  // Publication consumes this exact verified tarball, never a second pack.
+  const artifactPath = process.env.AUTH_UI_ARTIFACT_PATH;
+  if (artifactPath) copyFileSync(join(consumer, artifact.filename), artifactPath);
 } finally {
   rmSync(consumer, { recursive: true, force: true });
 }

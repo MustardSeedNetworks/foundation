@@ -3,9 +3,18 @@
   "packages": {
     ".": {
       "release-type": "go",
+      "include-component-in-tag": false,
+      "exclude-paths": ["ui"],
       "bump-minor-pre-major": true,
       "changelog-path": "CHANGELOG.md",
       "versioning": "default"
+    },
+    "ui": {
+      "release-type": "node",
+      "component": "auth-ui",
+      "include-component-in-tag": true,
+      "bump-minor-pre-major": true,
+      "changelog-path": "CHANGELOG.md"
     }
   },
   "changelog-sections": [
