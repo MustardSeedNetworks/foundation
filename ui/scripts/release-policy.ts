@@ -22,22 +22,15 @@ export function validateRelease(tag: string, metadata: unknown): void {
   record(metadata);
   assert(metadata.name === '@mustardseednetworks/auth-ui', 'Unexpected package name');
   assert(metadata.version === tag.slice('auth-ui-v'.length), 'Tag and package version differ');
-  assert(metadata.private !== true, 'Package remains private');
-  validatePublicationDestination(metadata);
-}
-
-function validatePublicationDestination(metadata: Record<string, unknown>): void {
+  // Delivered only as a GitHub release asset. `private` makes npm refuse to
+  // publish it anywhere, and no registry configuration may come back.
+  assert(metadata.private === true, 'Package must stay private');
+  assert(!('publishConfig' in metadata), 'Package must not configure a registry');
   record(metadata.repository);
   assert(
     metadata.repository.type === 'git' &&
       metadata.repository.url === 'https://github.com/MustardSeedNetworks/foundation.git' &&
       metadata.repository.directory === 'ui',
     'Unexpected package repository',
-  );
-  record(metadata.publishConfig);
-  assert(
-    metadata.publishConfig.access === 'public' &&
-      metadata.publishConfig.registry === 'https://registry.npmjs.org/',
-    'Unexpected publication destination',
   );
 }
