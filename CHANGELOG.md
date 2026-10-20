@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.8](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.7...v0.13.8) (2026-10-20)
+
+
+### Miscellaneous
+
+* **deps:** update actions/create-github-app-token action to v3.3.0 ([#158](https://github.com/MustardSeedNetworks/foundation/issues/158)) ([5e377fa](https://github.com/MustardSeedNetworks/foundation/commit/5e377faff81c3b47f874f908977774f196376045))
+
 ## [0.13.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.6...v0.13.7) (2026-10-20)
 
 
