@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.11](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.10...v0.13.11) (2026-10-21)
+
+
+### Continuous Integration
+
+* **conformance:** gate CI Complete on the fleet conformance check ([#167](https://github.com/MustardSeedNetworks/foundation/issues/167)) ([45d265e](https://github.com/MustardSeedNetworks/foundation/commit/45d265eba4371b03067a8fc9cee0e287c8e20d61))
+
 ## [0.13.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.9...v0.13.10) (2026-10-21)
 
 
