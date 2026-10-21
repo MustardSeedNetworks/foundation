@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.2...auth-ui-v0.1.3) (2026-10-21)
+
+
+### Miscellaneous
+
+* **deps:** update node.js to v26.12.0 ([#162](https://github.com/MustardSeedNetworks/foundation/issues/162)) ([8d1bd38](https://github.com/MustardSeedNetworks/foundation/commit/8d1bd3894a5c1d2232690641bd4ee777c42812ab))
+
 ## [0.1.2](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.1...auth-ui-v0.1.2) (2026-10-20)
 
 
