@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.9...v0.13.10) (2026-10-21)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.3 for GO-2026-6809 ([#169](https://github.com/MustardSeedNetworks/foundation/issues/169)) ([87ba5f3](https://github.com/MustardSeedNetworks/foundation/commit/87ba5f32bc1c38b6e418671e6b53ad00c79133cf)), closes [#168](https://github.com/MustardSeedNetworks/foundation/issues/168)
+
 ## [0.13.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.8...v0.13.9) (2026-10-21)
 
 
