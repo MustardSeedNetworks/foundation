@@ -326,6 +326,31 @@ func TestAFailedWorkerStopsTheRestOfTheGroup(t *testing.T) {
 	}
 }
 
+// A worker that fails while Start is still launching the rest makes the
+// supervisor stop the group at once; that stop must find every later worker's
+// cancel already in place. Run under -race.
+func TestAWorkerFailingDuringStartStopsTheRestCleanly(t *testing.T) {
+	t.Parallel()
+
+	log, _ := newTestLogger()
+	g := supervise.New(log)
+
+	g.Add("first", supervise.Fatal, func(context.Context) error {
+		return errors.New("failed on its first iteration")
+	})
+	for range 64 {
+		g.Add("later", supervise.Fatal, func(ctx context.Context) error {
+			<-ctx.Done()
+			return nil
+		})
+	}
+
+	g.Start(t.Context())
+	if err := g.Wait(); err == nil {
+		t.Fatal("Wait() = nil, want the first worker's failure")
+	}
+}
+
 func TestNilLoggerUsesTheDefault(t *testing.T) {
 	t.Parallel()
 
