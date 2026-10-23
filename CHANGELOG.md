@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.13](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.12...v0.13.13) (2026-10-23)
+
+
+### Miscellaneous
+
+* release main ([#179](https://github.com/MustardSeedNetworks/foundation/issues/179)) ([c661755](https://github.com/MustardSeedNetworks/foundation/commit/c6617558b744c0db43d95939292289dc8dd8947e))
+
 ## [0.13.12](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.11...v0.13.12) (2026-10-23)
 
 
