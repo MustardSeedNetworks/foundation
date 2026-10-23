@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.4...auth-ui-v0.1.5) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain to v5.0.5 ([#173](https://github.com/MustardSeedNetworks/foundation/issues/173)) ([002d326](https://github.com/MustardSeedNetworks/foundation/commit/002d326690e45c18e798b5df13f55c5c8ab93c73))
+
 ## [0.1.4](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.3...auth-ui-v0.1.4) (2026-10-23)
 
 
