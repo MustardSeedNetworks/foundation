@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.16](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.15...v0.13.16) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update dependency golangci/golangci-lint to v2.15.0 ([#183](https://github.com/MustardSeedNetworks/foundation/issues/183)) ([7685dc9](https://github.com/MustardSeedNetworks/foundation/commit/7685dc9813acdc99200dccc6f33ff49453ba1f6a))
+
 ## [0.13.15](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.14...v0.13.15) (2026-10-23)
 
 
