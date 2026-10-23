@@ -359,7 +359,7 @@ jobs:
   # severity, several of which encode deliberate decisions.
   codeql-alert-gate:
     name: CodeQL Alert Gate
-    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@048d173dd72ca0f9e5fa832fb5b9fd2a6447e5e9 # v1.13.0
+    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@76eb579ee0cbdef0a2aef9d9df1ae9ca38cad6bd # v1.14.0
     permissions:
       security-events: read
 
