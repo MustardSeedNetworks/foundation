@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.15](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.14...v0.13.15) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update mustardseednetworks/.github action to v1.14.0 ([#176](https://github.com/MustardSeedNetworks/foundation/issues/176)) ([490e3ac](https://github.com/MustardSeedNetworks/foundation/commit/490e3ac8cd1f2d340311476e2cbf8004b3cc8c5f))
+
 ## [0.13.14](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.13...v0.13.14) (2026-10-23)
 
 
