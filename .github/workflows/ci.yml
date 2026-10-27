@@ -270,7 +270,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.14.0
+          version: v2.15.0
 
       - name: Format check
         run: test -z "$(gofmt -l .)"
@@ -359,7 +359,7 @@ jobs:
   # severity, several of which encode deliberate decisions.
   codeql-alert-gate:
     name: CodeQL Alert Gate
-    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@048d173dd72ca0f9e5fa832fb5b9fd2a6447e5e9 # v1.13.0
+    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@76eb579ee0cbdef0a2aef9d9df1ae9ca38cad6bd # v1.14.0
     permissions:
       security-events: read
 
@@ -391,17 +391,19 @@ jobs:
           pipx install zizmor==1.30.1
           zizmor --min-severity high --color always .github/workflows/
 
+  # Pinned past v1.14.0 to .github#159 (untagged): the shared-theme check
+  # there applies only to a ui/src that ships CSS. ui/ here is a style-less
+  # TypeScript library, so v1.14.0 demanded a theme file it does not render.
+  ci-conformance:
+    name: CI Conformance
+    uses: MustardSeedNetworks/.github/.github/workflows/ci-conformance.yml@e51297ec59a5bef67683452940e8f02724b2e366 # .github#159, untagged
+    permissions:
+      contents: read
+      id-token: write
+
   # phone-width is a product-shell check at 390x844. ui/ here is a
   # style-less TypeScript library (contracts and webauthn): no routes, no
   # page header, no index.html. The gate does not apply.
-  #
-  # ci-conformance at .github v1.14.0 does not pass this tree. The one
-  # remaining finding, after the governance files in #125, is
-  # ui/src/theme/msn-shared.css: the check requires that file of every repo
-  # with a ui/src, and this library has no stylesheet. Copying the product
-  # theme in to satisfy it would put foundation on a file it does not render.
-  # Wiring the job is #123 slice 2, once the check can tell a library from a
-  # product shell. Until then the job would fail CI Complete.
   #
   # Branch protection requires ONLY this aggregate, never the individual job
   # names: enumerating them means every rename or added job silently stops
@@ -425,6 +427,7 @@ jobs:
       - dependency-review
       - codeql-alert-gate
       - workflow-lint
+      - ci-conformance
     if: always()
     steps:
       - name: Verify upstream results

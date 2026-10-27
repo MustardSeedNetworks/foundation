@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.13.16](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.15...v0.13.16) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update dependency golangci/golangci-lint to v2.15.0 ([#183](https://github.com/MustardSeedNetworks/foundation/issues/183)) ([7685dc9](https://github.com/MustardSeedNetworks/foundation/commit/7685dc9813acdc99200dccc6f33ff49453ba1f6a))
+
+## [0.13.15](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.14...v0.13.15) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update mustardseednetworks/.github action to v1.14.0 ([#176](https://github.com/MustardSeedNetworks/foundation/issues/176)) ([490e3ac](https://github.com/MustardSeedNetworks/foundation/commit/490e3ac8cd1f2d340311476e2cbf8004b3cc8c5f))
+
+## [0.13.14](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.13...v0.13.14) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update github/codeql-action action to v4.39.0 ([#175](https://github.com/MustardSeedNetworks/foundation/issues/175)) ([90eecfc](https://github.com/MustardSeedNetworks/foundation/commit/90eecfcf82f4c0ad00c53247b39fd6b4ebbae8c0))
+
+## [0.13.13](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.12...v0.13.13) (2026-10-23)
+
+
+### Miscellaneous
+
+* release main ([#179](https://github.com/MustardSeedNetworks/foundation/issues/179)) ([c661755](https://github.com/MustardSeedNetworks/foundation/commit/c6617558b744c0db43d95939292289dc8dd8947e))
+
+## [0.13.12](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.11...v0.13.12) (2026-10-23)
+
+
+### Miscellaneous
+
+* release main ([#177](https://github.com/MustardSeedNetworks/foundation/issues/177)) ([1fc961a](https://github.com/MustardSeedNetworks/foundation/commit/1fc961adeb2be11f06577a14f56d817fdd42dc4d))
+
+## [0.13.11](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.10...v0.13.11) (2026-10-21)
+
+
+### Continuous Integration
+
+* **conformance:** gate CI Complete on the fleet conformance check ([#167](https://github.com/MustardSeedNetworks/foundation/issues/167)) ([45d265e](https://github.com/MustardSeedNetworks/foundation/commit/45d265eba4371b03067a8fc9cee0e287c8e20d61))
+
+## [0.13.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.9...v0.13.10) (2026-10-21)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.3 for GO-2026-6809 ([#169](https://github.com/MustardSeedNetworks/foundation/issues/169)) ([87ba5f3](https://github.com/MustardSeedNetworks/foundation/commit/87ba5f32bc1c38b6e418671e6b53ad00c79133cf)), closes [#168](https://github.com/MustardSeedNetworks/foundation/issues/168)
+
 ## [0.13.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.8...v0.13.9) (2026-10-21)
 
 
