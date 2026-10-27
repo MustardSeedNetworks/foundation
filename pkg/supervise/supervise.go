@@ -109,17 +109,23 @@ func (g *Group) Start(ctx context.Context) {
 	}
 	g.started = true
 	workers := g.workers
-	g.mu.Unlock()
 
 	// Worker contexts hang off ctx's values but not its cancellation: a
 	// cancelled ctx must reach the workers through the ordered stop below,
 	// not all at once.
 	base := context.WithoutCancel(ctx)
 
-	for _, w := range workers {
-		wctx, cancel := context.WithCancel(base)
-		w.cancel = cancel
-		go g.supervise(wctx, w)
+	// Every cancel is in place before any worker runs, and published by the
+	// unlock: a worker that fails on its first iteration makes fail call Stop,
+	// which cancels every worker, including ones not yet launched.
+	contexts := make([]context.Context, len(workers))
+	for i, w := range workers {
+		contexts[i], w.cancel = context.WithCancel(base)
+	}
+	g.mu.Unlock()
+
+	for i, w := range workers {
+		go g.supervise(contexts[i], w)
 	}
 
 	go func() {
