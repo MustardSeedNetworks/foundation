@@ -21,6 +21,6 @@ consumer, checks its license, compiles against its types and imports its runtime
 ## Release verification
 
 `scripts/release-policy.ts` validates stable UI release tags against package
-identity, version and publication destination. `publish-auth-ui.yml` publishes
-only the tarball retained by the isolated consumer check, behind the explicit
-repository activation gate and protected-environment setup documented in README.
+identity and version, and requires the package to stay private with no registry
+configuration. `attach-auth-ui.yml` attests the tarball retained by the isolated
+consumer check and attaches it to the `auth-ui-v*` GitHub release.
