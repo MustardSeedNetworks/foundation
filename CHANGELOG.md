@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.17...v0.14.0) (2026-10-27)
+
+
+### Features
+
+* **auth-ui:** ship as a GitHub release asset instead of npm ([#150](https://github.com/MustardSeedNetworks/foundation/issues/150)) ([48afad6](https://github.com/MustardSeedNetworks/foundation/commit/48afad6633af264b12830b409fa24416f69287fc))
+
 ## [0.13.17](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.16...v0.13.17) (2026-10-27)
 
 
