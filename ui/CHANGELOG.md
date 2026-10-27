@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.5...auth-ui-v0.2.0) (2026-10-27)
+
+
+### Features
+
+* **auth-ui:** ship as a GitHub release asset instead of npm ([#150](https://github.com/MustardSeedNetworks/foundation/issues/150)) ([48afad6](https://github.com/MustardSeedNetworks/foundation/commit/48afad6633af264b12830b409fa24416f69287fc))
+
 ## [0.1.5](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.4...auth-ui-v0.1.5) (2026-10-23)
 
 
