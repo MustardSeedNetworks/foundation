@@ -7,8 +7,9 @@
 # hand-cut tag is a version nobody can reconstruct from the commit history.
 #
 # Trigger pattern is the fleet's (seed/stem/niac):
-#   - workflow_run on CI completion: real trigger; gated on success
-#   - schedule: reconciles a release that a flaky CI run skipped
+#   - workflow_run on CI Smoke (push to main) or CI (the release PR): real
+#     trigger; gated on success. Full CI does not run again on push.
+#   - schedule: once a day, reconciles a release that a failed signal skipped
 #   - workflow_dispatch: manual debug / force trigger
 #
 # The schedule is not belt-and-braces. The workflow_run gate means a TRANSIENT
@@ -33,13 +34,13 @@ on:
   # this workflow performs no checkout at all, and is gated on branches:[main]
   # plus conclusion == 'success'.
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["CI", "CI Smoke"]
     branches: [main]
     types: [completed]
-  # Offset from the hour and from the four product repos, so the fleet's
-  # release runs do not all fire together.
+  # Once a day, staggered across the fleet. workflow_run is the real
+  # trigger; this only reconciles a release a failed main signal skipped.
   schedule:
-    - cron: '23 */3 * * *'
+    - cron: '23 11 * * *'
   workflow_dispatch:
 
 # All three triggers can fire close together, and two overlapping runs both
@@ -66,7 +67,7 @@ jobs:
     steps:
       - name: Mint GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}

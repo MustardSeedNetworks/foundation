@@ -13,8 +13,6 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   schedule:
@@ -42,13 +40,13 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           languages: go
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/autobuild@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
 
       # Analysis still runs and still fails the job. The upload does not, on
       # merge_group: the queue ref can be deleted before code scanning
@@ -56,7 +54,7 @@ jobs:
       # 'never' is truthy, so the &&/|| pair selects it on that event and
       # 'always' otherwise.
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           category: "/language:go"
           upload: ${{ github.event_name == 'merge_group' && 'never' || 'always' }}

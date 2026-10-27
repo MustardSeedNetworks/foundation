@@ -1,0 +1,32 @@
+name: CI Smoke
+
+# The full CI workflow does not run on push to main. release-please is gated
+# on a successful workflow_run of *this* workflow on main, so a merged commit
+# still has a success to release from. The pull request already ran the suite.
+# Foundation has no merge queue, so this job does not pretend to re-test the
+# squash commit. It only has to complete.
+#
+# One concurrency group per commit, never cancelled. A shared group would
+# drop a pending run when the next merge lands — zero jobs, no conclusion —
+# and release-please would skip that commit.
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ci-smoke-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Main smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Main commit is releasable
+        env:
+          SHA: ${{ github.sha }}
+        run: echo "main ${SHA} smoke ok"

@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.5](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.4...auth-ui-v0.1.5) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain to v5.0.5 ([#173](https://github.com/MustardSeedNetworks/foundation/issues/173)) ([002d326](https://github.com/MustardSeedNetworks/foundation/commit/002d326690e45c18e798b5df13f55c5c8ab93c73))
+
+## [0.1.4](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.3...auth-ui-v0.1.4) (2026-10-23)
+
+
+### Miscellaneous
+
+* **deps:** update npm to v12.2.1 ([#174](https://github.com/MustardSeedNetworks/foundation/issues/174)) ([eda0581](https://github.com/MustardSeedNetworks/foundation/commit/eda058197c089e703a6694b15276644cbf606ed8))
+
+## [0.1.3](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.2...auth-ui-v0.1.3) (2026-10-21)
+
+
+### Miscellaneous
+
+* **deps:** update node.js to v26.12.0 ([#162](https://github.com/MustardSeedNetworks/foundation/issues/162)) ([8d1bd38](https://github.com/MustardSeedNetworks/foundation/commit/8d1bd3894a5c1d2232690641bd4ee777c42812ab))
+
+## [0.1.2](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.1...auth-ui-v0.1.2) (2026-10-20)
+
+
+### Miscellaneous
+
+* **deps:** update frontend toolchain to v5.0.4 ([#157](https://github.com/MustardSeedNetworks/foundation/issues/157)) ([7a141b0](https://github.com/MustardSeedNetworks/foundation/commit/7a141b0b05f7de600015e1760e923e2a1c1062cf))
+
 ## [0.1.1](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.1.0...auth-ui-v0.1.1) (2026-10-17)
 
 
