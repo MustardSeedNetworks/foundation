@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.17](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.16...v0.13.17) (2026-10-27)
+
+
+### Bug Fixes
+
+* **supervise:** set every worker's cancel before launching any ([#165](https://github.com/MustardSeedNetworks/foundation/issues/165)) ([d820e0a](https://github.com/MustardSeedNetworks/foundation/commit/d820e0a980253d1f0a9c5bbe9d51688ae20219ea)), closes [#164](https://github.com/MustardSeedNetworks/foundation/issues/164)
+
 ## [0.13.16](https://github.com/MustardSeedNetworks/foundation/compare/v0.13.15...v0.13.16) (2026-10-23)
 
 
