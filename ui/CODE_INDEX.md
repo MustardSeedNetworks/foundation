@@ -17,3 +17,10 @@ No token-bearing result is part of the shared interface.
 `scripts/test-package.ts` installs the actual packed artifact into an isolated
 consumer, checks its license, compiles against its types and imports its runtime.
 `scripts/prepare-package.ts` includes the repository license unchanged.
+
+## Release verification
+
+`scripts/release-policy.ts` validates stable UI release tags against package
+identity and version, and requires the package to stay private with no registry
+configuration. `attach-auth-ui.yml` attests the tarball retained by the isolated
+consumer check and attaches it to the `auth-ui-v*` GitHub release.

@@ -1,8 +1,8 @@
 # Shared authentication interface
 
-This package is under development and cannot yet be published (`private: true`).
-Its independent package version is not the Foundation Go module version.
-Registry access and release automation must be established before publication.
+This source-available package ships as a tarball attached to each
+`auth-ui-vX.Y.Z` GitHub release. It is never published to a registry. Its
+independent package version is not the Foundation Go module version.
 
 ## Boundary
 
@@ -45,5 +45,45 @@ npm audit
 
 The package test installs a tarball into a separate temporary consumer and
 checks exported types and runtime imports. It is not product adoption or browser
-acceptance. Consumers must pin a released registry version, subject to the
-existing seven-day release-age policy; no local-file dependency may ship.
+acceptance.
+
+## Installing in a product
+
+Depend on the release asset by exact URL. Never use a local-file dependency, and
+never use a git dependency on this repository:
+
+```sh
+npm install --save-exact \
+  https://github.com/MustardSeedNetworks/foundation/releases/download/auth-ui-v<version>/mustardseednetworks-auth-ui-<version>.tgz
+```
+
+The lockfile records the tarball's integrity, so a changed asset fails the
+install. To check provenance before adopting a version:
+
+```sh
+gh attestation verify mustardseednetworks-auth-ui-<version>.tgz --repo MustardSeedNetworks/foundation
+```
+
+npm's seven-day `min-release-age` applies to registry resolution, so it does not
+delay this URL dependency, and no exception to the guard is needed. Bumping is
+a URL edit; a product that wants Renovate to propose it adds a regex manager
+over the URL with the `github-releases` datasource (`extractVersion`
+`^auth-ui-v(?<version>.+)$`).
+
+## Releases
+
+Release-please versions `ui` independently and creates `auth-ui-vX.Y.Z` tags.
+Foundation's Go releases retain `vX.Y.Z` tags and exclude UI-only changes. Both
+components remain in the existing combined release pull request.
+
+When an `auth-ui-v*` release is published, `attach-auth-ui.yml` checks out the
+tag, verifies it is on `main`, validates the metadata (`scripts/release-policy.ts`
+requires `private: true` and no `publishConfig`), runs lint, typecheck, coverage
+and audit, then attests and attaches the exact tarball the isolated consumer
+check accepted (`AUTH_UI_ARTIFACT_PATH` tells `npm run test:package` where to
+copy it). It never replaces an existing asset: consumers pin its integrity, so a
+rerun on an attached release fails closed. To attach to a release published
+before this workflow existed, run it with `workflow_dispatch` and the tag.
+
+References: [release-please manifests](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md)
+and [artifact attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations).

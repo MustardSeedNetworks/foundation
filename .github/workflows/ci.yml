@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # No push trigger. The pull request already ran this suite, and running it
+  # again on main filled the org's 20-job cap. Foundation has no merge queue
+  # (release-please uses --auto --squash, which a queue rejects), so main is
+  # not re-tested here. ci-smoke.yml is the success release-please waits for.
   pull_request:
     branches: [main]
   # Required for the merge queue: `CI Complete` is a required status check, so
@@ -169,9 +171,10 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # pkg/corewlan's CoreWLAN binding is behind //go:build darwin, so the job
-  # above only ever compiles the !darwin stub — a break in the cgo/Objective-C
-  # path would still show a green check. This job builds the real thing.
+  # pkg/corewlan's CoreWLAN and pkg/corebluetooth's CoreBluetooth bindings are
+  # behind //go:build darwin, so the job above only ever compiles the !darwin
+  # stubs — a break in the cgo/Objective-C path would still show a green
+  # check. This job builds the real thing.
   build-test-darwin:
     name: Build & Test (macOS)
     runs-on: macos-latest
@@ -187,9 +190,9 @@ jobs:
       - run: go vet ./...
       # Linking, not just compiling, is what proves the -framework LDFLAGS
       # resolve: `go build` of a library package stops after the ObjC compile.
-      # The external corewlan_test package pulls the darwin implementation into
-      # a linked test binary, so this covers both. The tests are pure decoding,
-      # so the runner needs no Wi-Fi adapter and no Location Services grant.
+      # The external _test packages pull the darwin implementations into
+      # linked test binaries, so this covers both. The tests are pure decoding,
+      # so the runner needs no radio and no Location Services or Bluetooth grant.
       - run: go test -race ./...
       # macos-latest is arm64; products importing foundation still ship a
       # darwin/amd64 slice. Xcode carries both, so link that one too.
@@ -197,7 +200,9 @@ jobs:
         env:
           CGO_ENABLED: '1'
           GOARCH: amd64
-        run: go test -c -o /dev/null ./pkg/corewlan
+        run: |
+          go test -c -o /dev/null ./pkg/corewlan
+          go test -c -o /dev/null ./pkg/corebluetooth
 
   # pkg/instance's LockFileEx path is behind the _windows.go filename suffix,
   # so the Linux and macOS jobs above only ever build the flock implementation
@@ -265,7 +270,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.14.0
+          version: v2.15.0
 
       - name: Format check
         run: test -z "$(gofmt -l .)"
@@ -311,11 +316,15 @@ jobs:
   # Fleet-shared Semgrep gate. It scans with p/golang among its configs, so a
   # Go-only module is in scope; the reusable workflow is the single edit point
   # for the pinned version and severity policy across the fleet.
+  #
+  # Pinned past v1.14.0 to .github#174 (untagged). That commit skips the SARIF
+  # upload on merge_group — the queue ref is deleted before code scanning
+  # accepts it — and still fails the job on ERROR findings.
   semgrep:
     name: Semgrep SAST
     needs: [changes]
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci_infra == 'true'
-    uses: MustardSeedNetworks/.github/.github/workflows/semgrep.yml@048d173dd72ca0f9e5fa832fb5b9fd2a6447e5e9 # v1.13.0
+    uses: MustardSeedNetworks/.github/.github/workflows/semgrep.yml@8f012be52b47d0be45104b0ed8d3eb72f20840f5 # .github#174, untagged
     permissions:
       contents: read
       security-events: write
@@ -332,6 +341,17 @@ jobs:
     permissions:
       contents: read
 
+  # Fleet-shared: refuses a PR that introduces a vulnerable or badly-licensed
+  # dependency, the gap govulncheck leaves (it only sees what already merged).
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    uses: MustardSeedNetworks/.github/.github/workflows/dependency-review.yml@76eb579ee0cbdef0a2aef9d9df1ae9ca38cad6bd # v1.14.0
+    permissions:
+      contents: read
+      # Only to post the findings comment when it fails.
+      pull-requests: write
+
   # CodeQL's own job reports success when the *analysis* succeeds, whether or
   # not it found anything -- so without this the repository could carry open
   # High alerts with every check green. Scoped to CodeQL rather than "any High
@@ -339,7 +359,7 @@ jobs:
   # severity, several of which encode deliberate decisions.
   codeql-alert-gate:
     name: CodeQL Alert Gate
-    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@048d173dd72ca0f9e5fa832fb5b9fd2a6447e5e9 # v1.13.0
+    uses: MustardSeedNetworks/.github/.github/workflows/codeql-alert-gate.yml@76eb579ee0cbdef0a2aef9d9df1ae9ca38cad6bd # v1.14.0
     permissions:
       security-events: read
 
@@ -371,17 +391,19 @@ jobs:
           pipx install zizmor==1.30.1
           zizmor --min-severity high --color always .github/workflows/
 
+  # Pinned past v1.14.0 to .github#159 (untagged): the shared-theme check
+  # there applies only to a ui/src that ships CSS. ui/ here is a style-less
+  # TypeScript library, so v1.14.0 demanded a theme file it does not render.
+  ci-conformance:
+    name: CI Conformance
+    uses: MustardSeedNetworks/.github/.github/workflows/ci-conformance.yml@e51297ec59a5bef67683452940e8f02724b2e366 # .github#159, untagged
+    permissions:
+      contents: read
+      id-token: write
+
   # phone-width is a product-shell check at 390x844. ui/ here is a
   # style-less TypeScript library (contracts and webauthn): no routes, no
   # page header, no index.html. The gate does not apply.
-  #
-  # ci-conformance at .github v1.14.0 does not pass this tree. The one
-  # remaining finding, after the governance files in #125, is
-  # ui/src/theme/msn-shared.css: the check requires that file of every repo
-  # with a ui/src, and this library has no stylesheet. Copying the product
-  # theme in to satisfy it would put foundation on a file it does not render.
-  # Wiring the job is #123 slice 2, once the check can tell a library from a
-  # product shell. Until then the job would fail CI Complete.
   #
   # Branch protection requires ONLY this aggregate, never the individual job
   # names: enumerating them means every rename or added job silently stops
@@ -402,8 +424,10 @@ jobs:
       - security
       - semgrep
       - license-check
+      - dependency-review
       - codeql-alert-gate
       - workflow-lint
+      - ci-conformance
     if: always()
     steps:
       - name: Verify upstream results

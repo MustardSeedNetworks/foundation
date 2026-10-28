@@ -1,0 +1,60 @@
+# =============================================================================
+# OpenSSF Scorecard
+# =============================================================================
+# Measures supply-chain security posture against the OpenSSF Scorecard checks:
+# branch protection, code review, dependency update tools, signed releases,
+# pinned dependencies, SAST, vulnerabilities, etc.
+#
+# Runs weekly, and when branch protection changes. A push to main does not
+# scan again; that run used to take a slot on the org's 20-job cap.
+# Results still upload to the Security tab and, when publish_results is
+# true, to the public OpenSSF Scorecard API.
+# =============================================================================
+
+name: OpenSSF Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "37 9 * * 1"
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # publish_results: lets the OpenSSF Scorecard project ingest results
+          # so the public scorecard badge stays up to date. Safe for public
+          # repos; only metadata about checks is published, no source.
+          publish_results: true
+
+      # The merge queue deletes its temporary ref as soon as the group
+      # finishes, often before this upload runs. Code scanning then fails
+      # the job with "ref not found". The analysis above still runs; only
+      # the upload is skipped on that event. This workflow is not on the
+      # merge_group trigger today — the guard is here so enabling a queue
+      # cannot turn a deleted ref into a red job.
+      - name: Upload SARIF to GitHub Code Scanning
+        if: github.event_name != 'merge_group'
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: results.sarif
