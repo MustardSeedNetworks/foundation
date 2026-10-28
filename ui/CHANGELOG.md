@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.2.1...auth-ui-v0.2.2) (2026-10-28)
+
+
+### Miscellaneous
+
+* **deps:** lock file maintenance ([#133](https://github.com/MustardSeedNetworks/foundation/issues/133)) ([4a2efa9](https://github.com/MustardSeedNetworks/foundation/commit/4a2efa950135d3a95a468e8e1739509b296c2c52))
+
 ## [0.2.1](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.2.0...auth-ui-v0.2.1) (2026-10-28)
 
 
