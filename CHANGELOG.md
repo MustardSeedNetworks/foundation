@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.5...v0.14.6) (2026-11-06)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/sigstore/sigstore-go to v1.4.0 ([#200](https://github.com/MustardSeedNetworks/foundation/issues/200)) ([8385af5](https://github.com/MustardSeedNetworks/foundation/commit/8385af5a9563761c81398383531c9ac6fd629f2c))
+
 ## [0.14.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.4...v0.14.5) (2026-11-04)
 
 
