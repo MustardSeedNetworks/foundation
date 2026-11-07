@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.7](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.6...v0.14.7) (2026-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update module go.yaml.in/yaml/v3 to v3.0.6 ([#202](https://github.com/MustardSeedNetworks/foundation/issues/202)) ([432b0fe](https://github.com/MustardSeedNetworks/foundation/commit/432b0fe4f8a83cbe0ff4bb080c0c86fb3aa7266a))
+
 ## [0.14.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.5...v0.14.6) (2026-11-06)
 
 
