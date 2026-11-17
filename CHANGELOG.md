@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.9...v0.14.10) (2026-11-17)
+
+
+### Miscellaneous
+
+* **deps:** update node.js to v26.13.1 ([#212](https://github.com/MustardSeedNetworks/foundation/issues/212)) ([d3a5193](https://github.com/MustardSeedNetworks/foundation/commit/d3a5193936ce30b77c8680c03aee41944be0f99b))
+
 ## [0.14.9](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.8...v0.14.9) (2026-11-12)
 
 
