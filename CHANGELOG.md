@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.11](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.10...v0.14.11) (2026-11-20)
+
+
+### Bug Fixes
+
+* **deps:** move to Go 1.27.4 for GO-2026-6859 ([#215](https://github.com/MustardSeedNetworks/foundation/issues/215)) ([fc344c5](https://github.com/MustardSeedNetworks/foundation/commit/fc344c502edd33e0fe4f8a7c3292c26eea5b7ee8))
+
 ## [0.14.10](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.9...v0.14.10) (2026-11-17)
 
 
