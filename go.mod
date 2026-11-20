@@ -1,6 +1,6 @@
 module github.com/MustardSeedNetworks/foundation
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/go-webauthn/webauthn v0.18.2
@@ -73,7 +73,7 @@ require (
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
