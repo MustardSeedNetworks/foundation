@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/sigstore/sigstore-go v1.4.0
-	go.yaml.in/yaml/v3 v3.0.6
+	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/crypto v0.59.0
 	golang.org/x/mod v0.43.0
 	golang.org/x/sys v0.50.0
@@ -73,6 +73,7 @@ require (
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/term v0.48.0 // indirect
