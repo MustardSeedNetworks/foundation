@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.12](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.11...v0.14.12) (2026-11-20)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/crypto to v0.59.0 [security] ([#217](https://github.com/MustardSeedNetworks/foundation/issues/217)) ([4a684a9](https://github.com/MustardSeedNetworks/foundation/commit/4a684a94637bb91ef3800425bef379330bedcda0))
+
 ## [0.14.11](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.10...v0.14.11) (2026-11-20)
 
 
