@@ -94,7 +94,7 @@ func TestSwapBeforeTheCallIsRefused(t *testing.T) {
 
 func canonicalTemp(t *testing.T) string {
 	t.Helper()
-	dir, err := Canonical(t.TempDir())
+	dir, err := Canonical(t.TempDir(), Options{})
 	if err != nil {
 		t.Fatalf("Canonical: %v", err)
 	}

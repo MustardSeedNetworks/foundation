@@ -246,14 +246,91 @@ func openChain(path string, strict, wantWriteDAC bool, trust trustSet) (*chain, 
 	return c, nil
 }
 
-// checkNoLinks reports whether the chain down to dir contains a reparse point.
-func checkNoLinks(dir string) error {
-	c, err := openChain(dir, false, false, trustSet{})
-	if err != nil {
-		return err
+const maxLinkHops = 40
+
+func canonical(path string, trust trustSet) (string, error) {
+	for range maxLinkHops {
+		resolved, link, rest, err := canonicalOnce(path, trust)
+		if err != nil {
+			return "", err
+		}
+		if link == "" {
+			return resolved, nil
+		}
+		// The link is one we may follow, and everything above it was walked
+		// without following anything; EvalSymlinks only resolves the link.
+		target, err := filepath.EvalSymlinks(link)
+		if err != nil {
+			return "", fmt.Errorf("securedir: resolve %s: %w", link, err)
+		}
+		path = filepath.Join(target, rest)
 	}
-	c.close()
-	return nil
+	return "", fmt.Errorf("%w: too many levels of links in %s", ErrReparsePoint, path)
+}
+
+// canonicalOnce walks path from the volume root with a handle on each
+// directory, opening every child relative to it without following links. It
+// returns the resolved path, or a link it may follow with the rest of the path
+// below it.
+func canonicalOnce(path string, trust trustSet) (resolved, link, rest string, err error) {
+	volume := filepath.VolumeName(path)
+	rootPath := volume + `\`
+	rootName, err := windows.UTF16PtrFromString(rootPath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("securedir: path %q: %w", path, err)
+	}
+	current, err := windows.CreateFile(rootName, windows.READ_CONTROL|windows.FILE_LIST_DIRECTORY|windows.FILE_READ_ATTRIBUTES|windows.SYNCHRONIZE,
+		shareNoDelete|windows.FILE_SHARE_DELETE, nil, windows.OPEN_EXISTING,
+		windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+	if err != nil {
+		return "", "", "", fmt.Errorf("securedir: open %s: %w", rootPath, err)
+	}
+	defer func() { _ = windows.CloseHandle(current) }()
+
+	var parts []string
+	for _, p := range strings.Split(strings.TrimPrefix(path[len(volume):], `\`), `\`) {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	walked := rootPath
+	for i, name := range parts {
+		holder, err := describe(current)
+		if err != nil {
+			return "", "", "", fmt.Errorf("securedir: %s: %w", walked, err)
+		}
+		if err = trust.checkParent(holder.desc); err != nil {
+			return "", "", "", fmt.Errorf("ancestor %s: %w", walked, err)
+		}
+		handle, err := ntOpen(current, name, dirAccess, shareNoDelete|windows.FILE_SHARE_DELETE, windows.FILE_OPEN, 0, nil)
+		if errors.Is(err, os.ErrNotExist) {
+			return filepath.Join(append([]string{walked}, parts[i:]...)...), "", "", nil
+		}
+		if err != nil {
+			return "", "", "", fmt.Errorf("securedir: open %s: %w", filepath.Join(walked, name), err)
+		}
+		child, err := describe(handle)
+		if err != nil {
+			_ = windows.CloseHandle(handle)
+			return "", "", "", fmt.Errorf("securedir: %s: %w", filepath.Join(walked, name), err)
+		}
+		switch {
+		case child.isLink():
+			ownerErr := trust.checkOwner(child.desc)
+			_ = windows.CloseHandle(handle)
+			if ownerErr != nil {
+				return "", "", "", fmt.Errorf("%w: %s is a link not owned by a trusted principal", ErrReparsePoint, filepath.Join(walked, name))
+			}
+			return "", filepath.Join(walked, name), filepath.Join(parts[i+1:]...), nil
+		case !child.isDir() && i < len(parts)-1:
+			_ = windows.CloseHandle(handle)
+			return "", "", "", fmt.Errorf("securedir: %s is not a directory", filepath.Join(walked, name))
+		}
+		_ = windows.CloseHandle(current)
+		current = handle
+		walked = filepath.Join(walked, name)
+	}
+	return walked, "", "", nil
 }
 
 // sddl builds the protected descriptor: full control for SYSTEM,
@@ -268,7 +345,11 @@ func (s trustSet) sddl(container bool) string {
 	}
 	var b strings.Builder
 	b.WriteString("D:P")
-	for _, sid := range append([]string{sidSystem, sidAdministrators}, s.extras...) {
+	grantees := append([]string{sidSystem, sidAdministrators}, s.extras...)
+	if s.noAdmin && !container {
+		grantees = append([]string{sidSystem}, s.extras...)
+	}
+	for _, sid := range grantees {
 		fmt.Fprintf(&b, "(A;%s;FA;;;%s)", inherit, sid)
 	}
 	return b.String()
@@ -595,7 +676,8 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	handle, err := ntOpen(c.leaf.handle, base, access, shareNoDelete, disposition, windows.FILE_NON_DIRECTORY_FILE, sd)
+	// FILE_READ_ATTRIBUTES is what the link-count and reparse checks below need.
+	handle, err := ntOpen(c.leaf.handle, base, access|windows.FILE_READ_ATTRIBUTES, shareNoDelete, disposition, windows.FILE_NON_DIRECTORY_FILE, sd)
 	if err != nil {
 		return nil, fmt.Errorf("securedir: open %s: %w", path, err)
 	}

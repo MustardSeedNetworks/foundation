@@ -24,7 +24,7 @@ func mkdirMode(path string, perm fs.FileMode) error { return os.Mkdir(path, perm
 // callers (on macOS the temporary directory sits behind the /var link).
 func tempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := securedir.Canonical(t.TempDir())
+	dir, err := securedir.Canonical(t.TempDir(), securedir.Options{})
 	if err != nil {
 		t.Fatalf("Canonical: %v", err)
 	}
@@ -569,7 +569,93 @@ func TestAncestorSymlinkIsRefused(t *testing.T) {
 	}
 }
 
-func TestCanonical(t *testing.T) {
+func TestCanonicalKeepsMissingComponentsAndRejectsRelativePaths(t *testing.T) {
+	base := tempDir(t)
+	mustMkdir(t, filepath.Join(base, "mid"))
+	got, err := securedir.Canonical(filepath.Join(base, "mid", "not", "yet"), securedir.Options{})
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	if want := filepath.Join(base, "mid", "not", "yet"); got != want {
+		t.Errorf("Canonical = %s; want %s", got, want)
+	}
+	if err = securedir.Ensure(got, securedir.Options{}); err != nil {
+		t.Errorf("Ensure on the canonical path: %v", err)
+	}
+	if _, err = securedir.Canonical("relative", securedir.Options{}); err == nil {
+		t.Error("a relative path was accepted")
+	}
+}
+
+// plantedLink makes <base>/link -> <base>/real, owned by whoever runs the test
+// unless that is root, in which case it is handed to an unprivileged user.
+func plantedLink(t *testing.T, base string) string {
+	t.Helper()
+	real := filepath.Join(base, "real")
+	mustMkdir(t, filepath.Join(real, "mid"))
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Lchown(link, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return link
+}
+
+func TestCanonicalRefusesAUserOwnedSymlink(t *testing.T) {
+	link := plantedLink(t, tempDir(t))
+	_, err := securedir.Canonical(filepath.Join(link, "mid", "data"), securedir.Options{})
+	if !errors.Is(err, securedir.ErrReparsePoint) {
+		t.Fatalf("Canonical = %v; want ErrReparsePoint", err)
+	}
+}
+
+// The directory holding a link is checked before the link is looked at, so a
+// link in a directory others can write to is refused whoever owns the link.
+func TestCanonicalRefusesALinkInAWritableDirectory(t *testing.T) {
+	base := tempDir(t)
+	link := plantedLink(t, base)
+	if err := chmod(base, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	_, err := securedir.Canonical(filepath.Join(link, "mid", "data"), securedir.Options{})
+	if !errors.Is(err, securedir.ErrUnsafeAccess) {
+		t.Fatalf("Canonical = %v; want ErrUnsafeAccess", err)
+	}
+}
+
+// A link owned by root in a directory that passes the ancestor rules is
+// followed. Root-owned links cannot be created without root, so this uses the
+// system's own (macOS /var and /tmp, /bin on most Linux).
+func TestCanonicalFollowsARootOwnedLinkInATrustedDirectory(t *testing.T) {
+	for _, candidate := range []string{"/var", "/tmp", "/etc", "/bin", "/sbin", "/lib"} {
+		info, err := os.Lstat(candidate)
+		if err != nil || info.Mode()&fs.ModeSymlink == 0 {
+			continue
+		}
+		want, err := filepath.EvalSymlinks(candidate)
+		if err != nil {
+			continue
+		}
+		got, err := securedir.Canonical(candidate, securedir.Options{})
+		if err != nil {
+			t.Fatalf("Canonical(%s) = %v", candidate, err)
+		}
+		if got != want {
+			t.Errorf("Canonical(%s) = %s; want %s", candidate, got, want)
+		}
+		return
+	}
+	t.Skip("this system has no root-owned symlink among the usual top-level paths")
+}
+
+func TestCanonicalFollowsRootOwnedLinksCreatedByRoot(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("creating a root-owned link needs root")
+	}
 	base := tempDir(t)
 	real := filepath.Join(base, "real")
 	mustMkdir(t, filepath.Join(real, "mid"))
@@ -577,19 +663,16 @@ func TestCanonical(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
 	}
-
-	got, err := securedir.Canonical(filepath.Join(link, "mid", "not", "yet"))
-	if err != nil {
-		t.Fatalf("Canonical: %v", err)
+	got, err := securedir.Canonical(filepath.Join(link, "mid"), securedir.Options{})
+	if err != nil || got != filepath.Join(real, "mid") {
+		t.Fatalf("Canonical = %q, %v", got, err)
 	}
-	if want := filepath.Join(real, "mid", "not", "yet"); got != want {
-		t.Errorf("Canonical = %s; want %s (link resolved, missing tail kept)", got, want)
+	// ...and the same link in a directory anyone can write is refused.
+	if err = chmod(base, 0o777); err != nil {
+		t.Fatal(err)
 	}
-	if err = securedir.Ensure(got, securedir.Options{}); err != nil {
-		t.Errorf("Ensure on the canonical path: %v", err)
-	}
-	if _, err = securedir.Canonical("relative"); err == nil {
-		t.Error("a relative path was accepted")
+	if _, err = securedir.Canonical(filepath.Join(link, "mid"), securedir.Options{}); !errors.Is(err, securedir.ErrUnsafeAccess) {
+		t.Fatalf("root-owned link in a writable directory: Canonical = %v; want ErrUnsafeAccess", err)
 	}
 }
 

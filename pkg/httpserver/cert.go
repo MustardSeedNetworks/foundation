@@ -18,7 +18,6 @@ import (
 	"math/big"
 	"net"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -98,25 +97,24 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 	if optsErr != nil {
 		return tls.Certificate{}, optsErr
 	}
-	// securedir never follows a link, so the directories are resolved once here.
-	certDir, canonErr := securedir.Canonical(filepath.Dir(certPath))
-	if canonErr != nil {
-		return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", canonErr)
+	keyOpts := dirOpts
+	keyOpts.ExcludeAdministrators = true
+
+	// securedir never follows a link, so each directory is resolved once here,
+	// secured, and then written into by its resolved path.
+	certReal, certErr := securePath(certPath, dirOpts)
+	if certErr != nil {
+		return tls.Certificate{}, certErr
 	}
-	for _, dir := range uniqueDirs(certPath, keyPath) {
-		real, canonErr := securedir.Canonical(dir)
-		if canonErr != nil {
-			return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", canonErr)
-		}
-		if ensureErr := securedir.Ensure(real, dirOpts); ensureErr != nil {
-			return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", ensureErr)
-		}
+	keyReal, keyErr := securePath(keyPath, dirOpts)
+	if keyErr != nil {
+		return tls.Certificate{}, keyErr
 	}
-	if writeErr := securedir.WriteFile(filepath.Join(certDir, filepath.Base(certPath)), certPEM, dirOpts); writeErr != nil {
+	if writeErr := securedir.WriteFile(certReal, certPEM, dirOpts); writeErr != nil {
 		return tls.Certificate{}, fmt.Errorf("write certificate %s: %w", certPath, writeErr)
 	}
-	if writeErr := writePrivateKey(keyPath, keyPEM); writeErr != nil {
-		return tls.Certificate{}, writeErr
+	if writeErr := securedir.WriteFile(keyReal, keyPEM, keyOpts); writeErr != nil {
+		return tls.Certificate{}, fmt.Errorf("write private key %s: %w", keyPath, writeErr)
 	}
 
 	cert, pairErr := tls.X509KeyPair(certPEM, keyPEM)
@@ -129,15 +127,17 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 	return cert, nil
 }
 
-func uniqueDirs(paths ...string) []string {
-	var dirs []string
-	for _, path := range paths {
-		dir := filepath.Dir(path)
-		if !slices.Contains(dirs, dir) {
-			dirs = append(dirs, dir)
-		}
+// securePath resolves path's directory, makes it private and returns the path
+// of the file inside the resolved directory.
+func securePath(path string, opts securedir.Options) (string, error) {
+	dir, canonErr := securedir.Canonical(filepath.Dir(path), opts)
+	if canonErr != nil {
+		return "", fmt.Errorf("secure directory for %s: %w", path, canonErr)
 	}
-	return dirs
+	if ensureErr := securedir.Ensure(dir, opts); ensureErr != nil {
+		return "", fmt.Errorf("secure directory for %s: %w", path, ensureErr)
+	}
+	return filepath.Join(dir, filepath.Base(path)), nil
 }
 
 func logGenerated(logger *slog.Logger, cert tls.Certificate, certPath, reason string) {

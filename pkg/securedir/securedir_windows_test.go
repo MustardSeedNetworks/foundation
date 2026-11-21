@@ -142,6 +142,29 @@ func squat(t *testing.T, path string) {
 	}
 }
 
+// squatLink hands a reparse point itself, not its target, to BUILTIN\Users.
+func squatLink(t *testing.T, path string) {
+	t.Helper()
+	enablePrivilege(t, "SeRestorePrivilege")
+	name, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle, err := windows.CreateFile(name, windows.READ_CONTROL|windows.WRITE_OWNER, shareNoDelete|windows.FILE_SHARE_DELETE, nil,
+		windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+	if err != nil {
+		t.Fatalf("open %s: %v", path, err)
+	}
+	defer func() { _ = windows.CloseHandle(handle) }()
+	users, err := windows.StringToSid("S-1-5-32-545")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = windows.SetSecurityInfo(handle, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION, users, nil, nil, nil); err != nil {
+		t.Fatalf("hand %s to Users: %v", path, err)
+	}
+}
+
 func TestEnsureCreatesAProtectedDirectoryAndAncestors(t *testing.T) {
 	user := currentUserSID(t)
 	leaf := filepath.Join(t.TempDir(), "a", "b", "data")
@@ -635,19 +658,26 @@ func TestSwapBeforeTheCallIsRefused(t *testing.T) {
 	}
 }
 
-func TestCanonicalResolvesJunctionsAndKeepsMissingComponents(t *testing.T) {
-	base, err := Canonical(t.TempDir())
-	if err != nil {
+func junctionFixture(t *testing.T) (base, real, link string) {
+	t.Helper()
+	var err error
+	if base, err = Canonical(t.TempDir(), userOpts(t)); err != nil {
 		t.Fatalf("Canonical: %v", err)
 	}
-	real := filepath.Join(base, "real")
+	real = filepath.Join(base, "real")
 	if err = os.MkdirAll(filepath.Join(real, "mid"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(base, "link")
+	link = filepath.Join(base, "link")
 	makeJunction(t, link, real)
+	return base, real, link
+}
 
-	got, err := Canonical(filepath.Join(link, "mid", "not", "yet"))
+// A junction owned by a trusted principal, in a directory that passes the
+// ancestor rules, is followed, and components that do not exist yet are kept.
+func TestCanonicalFollowsATrustedJunctionAndKeepsMissingComponents(t *testing.T) {
+	_, real, link := junctionFixture(t)
+	got, err := Canonical(filepath.Join(link, "mid", "not", "yet"), userOpts(t))
 	if err != nil {
 		t.Fatalf("Canonical: %v", err)
 	}
@@ -657,6 +687,22 @@ func TestCanonicalResolvesJunctionsAndKeepsMissingComponents(t *testing.T) {
 	if err = Ensure(got, userOpts(t)); err != nil {
 		t.Errorf("Ensure on the canonical path: %v", err)
 	}
+}
+
+// With no ExtraTrustedSIDs the account running the tests is not trusted, so a
+// junction it created is a link planted by someone untrusted.
+func TestCanonicalRefusesAJunctionOwnedByAnUntrustedPrincipal(t *testing.T) {
+	_, _, link := junctionFixture(t)
+	squatLink(t, link)
+	_, err := Canonical(filepath.Join(link, "mid"), userOpts(t))
+	expectErr(t, err, ErrReparsePoint)
+}
+
+func TestCanonicalRefusesAJunctionInADirectoryOthersCanModify(t *testing.T) {
+	base, _, link := junctionFixture(t)
+	setDACL(t, base, "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;"+currentUserSID(t)+")(A;;0x40;;;BU)")
+	_, err := Canonical(filepath.Join(link, "mid"), userOpts(t))
+	expectErr(t, err, ErrUnsafeAccess)
 }
 
 func TestEnsureDoesNotCreateThroughAJunctionedAncestor(t *testing.T) {

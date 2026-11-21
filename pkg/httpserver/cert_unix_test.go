@@ -55,10 +55,9 @@ func TestEnsureCertificateSecuresTheCertificateDirectory(t *testing.T) {
 	}
 }
 
-// A link in the configured directory is resolved once, up front, and the
-// resolved directory is what gets secured and written; nothing is written
-// through the link afterwards.
-func TestEnsureCertificateResolvesASymlinkedCertificateDirectory(t *testing.T) {
+// A link planted in the configured path is refused, not resolved: securedir
+// follows only links owned by root.
+func TestEnsureCertificateRefusesASymlinkedCertificateDirectory(t *testing.T) {
 	base := t.TempDir()
 	real := filepath.Join(base, "real")
 	if err := os.Mkdir(real, 0o700); err != nil {
@@ -68,15 +67,70 @@ func TestEnsureCertificateResolvesASymlinkedCertificateDirectory(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
 	}
-	_, err := httpserver.EnsureCertificate(nil, filepath.Join(link, "server.crt"), filepath.Join(link, "server.key"), httpserver.CertOptions{})
-	if err != nil {
-		t.Fatalf("EnsureCertificate: %v", err)
+	if os.Geteuid() == 0 {
+		if err := os.Lchown(link, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if _, statErr := os.Stat(filepath.Join(real, "server.crt")); statErr != nil {
-		t.Errorf("certificate is not in the resolved directory: %v", statErr)
+	_, err := httpserver.EnsureCertificate(nil, filepath.Join(link, "server.crt"), filepath.Join(link, "server.key"), httpserver.CertOptions{})
+	if err == nil {
+		t.Fatal("EnsureCertificate wrote through a symlinked directory")
+	}
+	if _, statErr := os.Stat(filepath.Join(real, "server.crt")); statErr == nil {
+		t.Error("the certificate was written through the link")
 	}
 }
 
 // mkdirMode takes the mode as a parameter: the point is a deliberately loose
 // directory, which a literal mode would have the security linter reject.
 func mkdirMode(path string, perm os.FileMode) error { return os.Mkdir(path, perm) }
+
+// The key is written through securedir like the certificate: a key directory
+// that is a link planted by an unprivileged user is refused, and a link at the
+// key's own path is replaced rather than written through.
+func TestEnsureCertificateRefusesALinkedKeyDirectory(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	if err := os.Mkdir(real, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "keys")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Lchown(link, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := httpserver.EnsureCertificate(nil, filepath.Join(base, "certs", "server.crt"), filepath.Join(link, "server.key"), httpserver.CertOptions{})
+	if err == nil {
+		t.Fatal("EnsureCertificate wrote a key through a linked directory")
+	}
+	if _, statErr := os.Stat(filepath.Join(real, "server.key")); statErr == nil {
+		t.Error("the key was written through the link")
+	}
+}
+
+// A link sitting at the key's own path is refused (the directory's contents
+// are judged before anything is written) and nothing is written through it.
+func TestEnsureCertificateRefusesALinkAtTheKeyPath(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("untouched"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	keyPath := filepath.Join(dir, "server.key")
+	if err := os.Symlink(victim, keyPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := httpserver.EnsureCertificate(nil, filepath.Join(dir, "server.crt"), keyPath, httpserver.CertOptions{}); err == nil {
+		t.Fatal("EnsureCertificate accepted a link at the key path")
+	}
+	if got, _ := os.ReadFile(victim); string(got) != "untouched" {
+		t.Errorf("the key was written through the link: %q", got)
+	}
+}

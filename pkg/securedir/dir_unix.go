@@ -102,13 +102,86 @@ func components(path string) []string {
 	return strings.FieldsFunc(path, func(r rune) bool { return r == '/' })
 }
 
-// checkNoLinks reports whether the chain down to dir contains a link.
-func checkNoLinks(dir string) error {
-	fd, _, err := openChain(dir, false)
-	if err != nil {
-		return err
+const maxLinkHops = 40
+
+func canonical(path string, _ trustSet) (string, error) {
+	for range maxLinkHops {
+		resolved, next, err := canonicalOnce(path)
+		if err != nil {
+			return "", err
+		}
+		if next == "" {
+			return resolved, nil
+		}
+		path = next
 	}
-	return unix.Close(fd)
+	return "", fmt.Errorf("%w: too many levels of links in %s", ErrReparsePoint, path)
+}
+
+// canonicalOnce walks path from / without following anything. It returns the
+// resolved path, or, when it meets a link it may follow, the path to restart
+// from with the link's target spliced in.
+func canonicalOnce(path string) (resolved, next string, err error) {
+	fd, err := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = unix.Close(fd) }()
+	st, err := fstat(fd)
+	if err != nil {
+		return "", "", err
+	}
+
+	parts := components(path)
+	current := "/"
+	for i, name := range parts {
+		if err = checkAncestor(current, st); err != nil {
+			return "", "", err
+		}
+		entry, statErr := lstatAt(fd, name)
+		switch {
+		case errors.Is(statErr, unix.ENOENT):
+			return filepath.Join(append([]string{current}, parts[i:]...)...), "", nil
+		case statErr != nil:
+			return "", "", statErr
+		case isLink(entry):
+			if entry.Uid != 0 {
+				return "", "", fmt.Errorf("%w: %s is a link not owned by root", ErrReparsePoint, filepath.Join(current, name))
+			}
+			target, readErr := readlinkAt(fd, name)
+			if readErr != nil {
+				return "", "", readErr
+			}
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(current, target)
+			}
+			return "", filepath.Join(append([]string{target}, parts[i+1:]...)...), nil
+		case !isDir(entry) && i < len(parts)-1:
+			return "", "", fmt.Errorf("securedir: %s is not a directory", filepath.Join(current, name))
+		case !isDir(entry):
+			return filepath.Join(current, name), "", nil
+		}
+		child, openErr := openDirAt(fd, name)
+		if openErr != nil {
+			return "", "", openErr
+		}
+		_ = unix.Close(fd)
+		fd = child
+		if st, err = fstat(fd); err != nil {
+			return "", "", err
+		}
+		current = filepath.Join(current, name)
+	}
+	return current, "", nil
+}
+
+func readlinkAt(dirfd int, name string) (string, error) {
+	buf := make([]byte, unix.PathMax)
+	n, err := unix.Readlinkat(dirfd, name, buf)
+	if err != nil {
+		return "", err
+	}
+	return string(buf[:n]), nil
 }
 
 // openChain opens path as a directory by walking from / one component at a

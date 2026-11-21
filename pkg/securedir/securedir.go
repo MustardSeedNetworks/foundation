@@ -29,7 +29,6 @@ package securedir
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -61,6 +60,12 @@ type Options struct {
 	// everywhere but unused on unix.
 	ExtraTrustedSIDs []string
 
+	// ExcludeAdministrators leaves BUILTIN\Administrators out of the DACL of
+	// files WriteFile and OpenFile create, so only SYSTEM and ExtraTrustedSIDs
+	// can read them: for a private key that the service account alone should
+	// hold. Windows only; directories are unaffected.
+	ExcludeAdministrators bool
+
 	// Files are paths relative to the directory that Verify requires to exist.
 	// They get no extra scrutiny, since Verify already walks everything under
 	// the directory; this is the assertion that the expected files are there.
@@ -80,6 +85,7 @@ const (
 // trustSet is the validated, normalised principal set derived from Options.
 type trustSet struct {
 	trusted map[string]struct{}
+	noAdmin bool
 	// extras are the caller's additions, in order, deduplicated; they are what
 	// Ensure and WriteFile grant beyond SYSTEM and Administrators.
 	extras []string
@@ -91,6 +97,7 @@ func newTrustSet(opts Options) (trustSet, error) {
 		sidAdministrators:   {},
 		sidTrustedInstaller: {},
 	}}
+	set.noAdmin = opts.ExcludeAdministrators
 	for _, raw := range opts.ExtraTrustedSIDs {
 		sid := strings.ToUpper(strings.TrimSpace(raw))
 		if !validSID(sid) {
@@ -162,38 +169,36 @@ func checkFiles(files []string) error {
 	return nil
 }
 
-// Canonical resolves every symbolic link, junction and mount-point alias in
-// path and returns the real absolute path, after checking that the chain it
-// names has none left. The other functions here never follow a link: a link
-// anywhere in the path they are given, at any depth, is an
-// [ErrReparsePoint]. A product therefore calls Canonical once at startup and
-// uses the result for Ensure, Verify, WriteFile and OpenFile; that is also how
-// macOS /var (a link to /private/var) is handled. Components that do not
-// exist yet are kept as written, so it can be used before Ensure creates them.
+// Canonical returns the real absolute path for path, with every link in it
+// resolved. The other functions here never follow a link: a link anywhere in
+// the path they are given, at any depth, is an [ErrReparsePoint]. A product
+// therefore calls Canonical once at startup and passes the result to Ensure,
+// Verify, WriteFile and OpenFile.
+//
+// Canonical is not EvalSymlinks. It walks the path one component at a time
+// from the root (the volume root on Windows). Every directory it passes through
+// must have a trusted owner and grant nobody untrusted the right to delete,
+// rename or re-ACL what is inside it (the ancestor rules of [Verify]), so the
+// directory it is about to look into is one a user could not have tampered
+// with. A link is followed only when the link itself is owned by root (on
+// Windows SYSTEM, Administrators, TrustedInstaller or an ExtraTrustedSIDs
+// entry) and the directory holding it passed that check; that is what lets the
+// macOS /var and /tmp links through while a link an unprivileged user planted
+// is refused with [ErrReparsePoint]. The final component is not required to
+// pass the ancestor rules, since [Ensure] and [Verify] judge it. Components
+// that do not exist yet are kept as written, so it can be used before Ensure
+// creates them.
 //
 // The path must be absolute.
-func Canonical(path string) (string, error) {
-	if err := requireAbs(path); err != nil {
+func Canonical(path string, opts Options) (string, error) {
+	trust, err := newTrustSet(opts)
+	if err != nil {
 		return "", err
 	}
-	existing, missing := filepath.Clean(path), ""
-	for {
-		resolved, err := filepath.EvalSymlinks(existing)
-		if err == nil {
-			existing = resolved
-			break
-		}
-		parent := filepath.Dir(existing)
-		if !errors.Is(err, fs.ErrNotExist) || parent == existing {
-			return "", fmt.Errorf("securedir: resolve %s: %w", path, err)
-		}
-		missing = filepath.Join(filepath.Base(existing), missing)
-		existing = parent
-	}
-	if err := checkNoLinks(existing); err != nil {
+	if err = requireAbs(path); err != nil {
 		return "", err
 	}
-	return filepath.Join(existing, missing), nil
+	return canonical(filepath.Clean(path), trust)
 }
 
 // Ensure makes path an existing private directory.
