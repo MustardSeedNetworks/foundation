@@ -785,3 +785,56 @@ func TestCanonicalRefusesATrustedOwnedJunctionThatGrantsAUserWriteAccess(t *test
 		})
 	}
 }
+
+// The file OpenFile hands back is judged on its own DACL and owner, not only
+// the directory around it.
+func TestOpenFileRefusesAFileOthersCanWriteOrOwn(t *testing.T) {
+	user := currentUserSID(t)
+	loose := "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;" + user + ")"
+	for name, extra := range map[string]string{
+		"write":       "(A;;FW;;;BU)",
+		"delete":      "(A;;0x10000;;;BU)",
+		"write_dac":   "(A;;WD;;;BU)",
+		"write_owner": "(A;;WO;;;BU)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "data")
+			if err := Ensure(dir, userOpts(t)); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "config")
+			if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			file, err := OpenFile(path, os.O_RDONLY, userOpts(t))
+			if err != nil {
+				t.Fatalf("OpenFile before: %v", err)
+			}
+			_ = file.Close()
+
+			setDACL(t, path, loose+extra)
+			file, err = OpenFile(path, os.O_RDONLY, userOpts(t))
+			if file != nil {
+				_ = file.Close()
+			}
+			expectErr(t, err, ErrUnsafeAccess)
+		})
+	}
+
+	t.Run("untrusted owner", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "data")
+		if err := Ensure(dir, userOpts(t)); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(dir, "config")
+		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		squat(t, path)
+		file, err := OpenFile(path, os.O_RDONLY, userOpts(t))
+		if file != nil {
+			_ = file.Close()
+		}
+		expectErr(t, err, ErrUntrustedOwner)
+	})
+}

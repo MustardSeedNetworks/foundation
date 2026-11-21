@@ -81,3 +81,21 @@ func TestCanonicalRefusesALinkInADirectoryWithAnACLGrant(t *testing.T) {
 		t.Fatalf("Canonical = %v; want ErrUnsafeAccess", err)
 	}
 }
+
+func TestOpenFileRefusesAFileWithAnACLWriteGrant(t *testing.T) {
+	dir := filepath.Join(tempDir(t), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "config")
+	mustWrite(t, path, 0o600)
+	setfacl(t, "-m", "u:65534:rw", path)
+
+	file, err := securedir.OpenFile(path, os.O_RDONLY, securedir.Options{})
+	if file != nil {
+		_ = file.Close()
+	}
+	if !errors.Is(err, securedir.ErrUnsafeAccess) {
+		t.Fatalf("OpenFile = %v; want ErrUnsafeAccess", err)
+	}
+}

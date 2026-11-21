@@ -726,3 +726,49 @@ func TestCanonicalChecksTheLinkInsideAFollowedLinksTarget(t *testing.T) {
 		t.Fatalf("Canonical = %v; want ErrReparsePoint", err)
 	}
 }
+
+// The file OpenFile hands back is judged on its own, not only the directory
+// around it: a file anyone can write is not one a privileged caller should
+// read configuration from.
+func TestOpenFileRefusesAFileOthersCanWrite(t *testing.T) {
+	dir := filepath.Join(tempDir(t), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, perm := range []fs.FileMode{0o666, 0o662, 0o620, 0o602} {
+		path := filepath.Join(dir, "config")
+		mustWrite(t, path, perm)
+		file, err := securedir.OpenFile(path, os.O_RDONLY, securedir.Options{})
+		if file != nil {
+			_ = file.Close()
+		}
+		if !errors.Is(err, securedir.ErrUnsafeAccess) {
+			t.Errorf("mode %#o: OpenFile = %v; want ErrUnsafeAccess", perm, err)
+		}
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestOpenFileRefusesAFileWithAnUntrustedOwner(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("handing a file to another user needs root")
+	}
+	dir := filepath.Join(tempDir(t), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "config")
+	mustWrite(t, path, 0o600)
+	if err := os.Chown(path, 65534, 65534); err != nil {
+		t.Fatal(err)
+	}
+	file, err := securedir.OpenFile(path, os.O_RDONLY, securedir.Options{})
+	if file != nil {
+		_ = file.Close()
+	}
+	if !errors.Is(err, securedir.ErrUntrustedOwner) {
+		t.Fatalf("OpenFile = %v; want ErrUntrustedOwner", err)
+	}
+}

@@ -682,23 +682,21 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	// FILE_READ_ATTRIBUTES is what the link-count and reparse checks below need.
-	handle, err := ntOpen(c.leaf.handle, base, access|windows.FILE_READ_ATTRIBUTES, shareNoDelete, disposition, windows.FILE_NON_DIRECTORY_FILE, sd)
+	// READ_CONTROL and FILE_READ_ATTRIBUTES are what the checks below need.
+	handle, err := ntOpen(c.leaf.handle, base, access|windows.READ_CONTROL|windows.FILE_READ_ATTRIBUTES, shareNoDelete, disposition, windows.FILE_NON_DIRECTORY_FILE, sd)
 	if err != nil {
 		return nil, notAFile(c.leaf.handle, base, path, err)
 	}
-	var info windows.ByHandleFileInformation
-	if err = windows.GetFileInformationByHandle(handle, &info); err != nil {
-		_ = windows.CloseHandle(handle)
-		return nil, fmt.Errorf("securedir: stat %s: %w", path, err)
+	// The same decision Verify makes for every file it walks: not a link or a
+	// directory, one hard link, trusted owner, no untrusted write, DELETE,
+	// WRITE_DAC or WRITE_OWNER grant, read from the handle that will be used.
+	obj, err := describe(handle)
+	if err == nil {
+		err = checkOne(path, obj, false, trust)
 	}
-	if info.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+	if err != nil {
 		_ = windows.CloseHandle(handle)
-		return nil, fmt.Errorf("%w: %s", ErrReparsePoint, path)
-	}
-	if info.NumberOfLinks != 1 {
-		_ = windows.CloseHandle(handle)
-		return nil, fmt.Errorf("%w: %s does not have exactly one link", ErrUnsafeAccess, path)
+		return nil, err
 	}
 	file := os.NewFile(uintptr(handle), path)
 	if flag&os.O_TRUNC != 0 {

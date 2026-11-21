@@ -266,13 +266,16 @@ func walkTree(dirfd int, prefix string) error {
 		if isLink(st) {
 			return fmt.Errorf("%w: %s", ErrReparsePoint, path)
 		}
+		if st.Mode&unix.S_IFMT == unix.S_IFREG {
+			if err = checkFileAt(dirfd, entry.Name(), path); err != nil {
+				return err
+			}
+			continue
+		}
 		if err = checkEntry(path, st); err != nil {
 			return err
 		}
 		if !isDir(st) {
-			if err = checkFileACL(dirfd, entry.Name(), path, st); err != nil {
-				return err
-			}
 			continue
 		}
 		sub, openErr := openDirAt(dirfd, entry.Name())
@@ -291,18 +294,34 @@ func walkTree(dirfd int, prefix string) error {
 	return nil
 }
 
-// checkFileACL checks the ACL of a regular file by opening it without
-// following a link; other kinds of entry carry no ACL worth reading.
-func checkFileACL(dirfd int, name, path string, st *unix.Stat_t) error {
-	if st.Mode&unix.S_IFMT != unix.S_IFREG {
-		return nil
+// checkOpenFile is the one decision about a regular file, used for the files
+// Verify walks and for the file OpenFile has opened: a trusted owner, nothing
+// writable by group or others, no second name, and no ACL grant to an untrusted
+// principal. It runs on the open descriptor, so it describes the file that will
+// be read.
+func checkOpenFile(fd int, path string) error {
+	st, err := fstat(fd)
+	if err != nil {
+		return err
 	}
+	if st.Mode&unix.S_IFMT != unix.S_IFREG {
+		return fmt.Errorf("%w: %s is not a regular file", ErrUnsafeAccess, path)
+	}
+	if err = checkEntry(path, st); err != nil {
+		return err
+	}
+	return checkACL(fd, path, false, false)
+}
+
+// checkFileAt opens a regular file without following a link and applies
+// checkOpenFile to it.
+func checkFileAt(dirfd int, name, path string) error {
 	fd, err := unix.Openat(dirfd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return fmt.Errorf("open %s to read its ACL: %w", path, err)
+		return fmt.Errorf("open %s to check it: %w", path, err)
 	}
 	defer unix.Close(fd)
-	return checkACL(fd, path, false, false)
+	return checkOpenFile(fd, path)
 }
 
 func ensure(path string, _ trustSet) error {
@@ -452,10 +471,7 @@ func openFile(path string, flag int, _ trustSet) (*os.File, error) {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	file := os.NewFile(uintptr(fd), path)
-	st, err := fstat(fd)
-	if err == nil && (st.Mode&unix.S_IFMT != unix.S_IFREG || uint64(st.Nlink) != 1) {
-		err = fmt.Errorf("%w: %s is not a regular file with exactly one link", ErrUnsafeAccess, path)
-	}
+	err = checkOpenFile(fd, path)
 	if err == nil && truncate {
 		err = file.Truncate(0)
 	}
