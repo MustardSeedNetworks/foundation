@@ -17,25 +17,18 @@ import (
 	"log/slog"
 	"math/big"
 	"net"
-	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+
+	"github.com/MustardSeedNetworks/foundation/pkg/securedir"
 )
 
 // certValidity is how long a generated self-signed certificate lasts. One year
 // matches what every product already issued; a developer certificate that
 // outlives the machine is not a feature.
 const certValidity = 365 * 24 * time.Hour
-
-// certFileMode and keyFileMode are the on-disk permissions. The private key is
-// owner-only: a world-readable key in a shared dev box is a real leak. Windows
-// has no mode bits, so keyFileMode is the unix half of that promise and
-// writePrivateKey carries the other half; see cert_windows.go.
-const (
-	certFileMode os.FileMode = 0o644
-	keyFileMode  os.FileMode = 0o600
-)
 
 // CertOptions describes the self-signed certificate [EnsureCertificate]
 // generates when no operator certificate is configured.
@@ -46,6 +39,12 @@ type CertOptions struct {
 	// DNSNames are the names the certificate must cover, beyond the loopback
 	// IP SANs that are always present. Empty means "localhost".
 	DNSNames []string
+
+	// Dir tunes how the directories holding the certificate and key are
+	// secured. Services that run as a dedicated account add it to
+	// Dir.ExtraTrustedSIDs so replacing the directory's access control does
+	// not lock that account out; Dir.Files is not used here.
+	Dir securedir.Options
 }
 
 // SelfSignedCertificate generates an in-memory self-signed certificate.
@@ -95,12 +94,16 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 		return tls.Certificate{}, genErr
 	}
 
-	for _, path := range []string{certPath, keyPath} {
-		if mkdirErr := os.MkdirAll(filepath.Dir(path), 0o750); mkdirErr != nil {
-			return tls.Certificate{}, fmt.Errorf("create certificate directory for %s: %w", path, mkdirErr)
+	dirOpts, optsErr := certDirOptions(opts.Dir)
+	if optsErr != nil {
+		return tls.Certificate{}, optsErr
+	}
+	for _, dir := range uniqueDirs(certPath, keyPath) {
+		if ensureErr := securedir.Ensure(dir, dirOpts); ensureErr != nil {
+			return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", ensureErr)
 		}
 	}
-	if writeErr := os.WriteFile(certPath, certPEM, certFileMode); writeErr != nil {
+	if writeErr := securedir.WriteFile(certPath, certPEM, dirOpts); writeErr != nil {
 		return tls.Certificate{}, fmt.Errorf("write certificate %s: %w", certPath, writeErr)
 	}
 	if writeErr := writePrivateKey(keyPath, keyPEM); writeErr != nil {
@@ -115,6 +118,17 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 		logGenerated(logger, cert, certPath, reason)
 	}
 	return cert, nil
+}
+
+func uniqueDirs(paths ...string) []string {
+	var dirs []string
+	for _, path := range paths {
+		dir := filepath.Dir(path)
+		if !slices.Contains(dirs, dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
 }
 
 func logGenerated(logger *slog.Logger, cert tls.Certificate, certPath, reason string) {
