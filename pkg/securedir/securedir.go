@@ -175,7 +175,7 @@ func checkFiles(files []string) error {
 // therefore calls Canonical once at startup and passes the result to Ensure,
 // Verify, WriteFile and OpenFile.
 //
-// Canonical is not EvalSymlinks. It walks the path one component at a time
+// Canonical does not use the standard library's link resolver. It walks the path one component at a time
 // from the root (the volume root on Windows). Every directory it passes through
 // must have a trusted owner and grant nobody untrusted the right to delete,
 // rename or re-ACL what is inside it (the ancestor rules of [Verify]), so the

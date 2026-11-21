@@ -719,3 +719,19 @@ func TestEnsureDoesNotCreateThroughAJunctionedAncestor(t *testing.T) {
 		t.Error("a directory was created through the junction")
 	}
 }
+
+// A trusted junction does not vouch for the junction inside its target: the
+// walk restarts after each hop and checks the next link on its own.
+func TestCanonicalChecksTheLinkInsideAFollowedLinksTarget(t *testing.T) {
+	base, real, outer := junctionFixture(t)
+	elsewhere := filepath.Join(base, "elsewhere")
+	if err := os.Mkdir(elsewhere, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	inner := filepath.Join(real, "mid", "inner")
+	makeJunction(t, inner, elsewhere)
+	squatLink(t, inner)
+
+	_, err := Canonical(filepath.Join(outer, "mid", "inner"), userOpts(t))
+	expectErr(t, err, ErrReparsePoint)
+}

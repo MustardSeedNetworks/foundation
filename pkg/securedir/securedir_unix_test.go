@@ -636,9 +636,13 @@ func TestCanonicalFollowsARootOwnedLinkInATrustedDirectory(t *testing.T) {
 		if err != nil || info.Mode()&fs.ModeSymlink == 0 {
 			continue
 		}
-		want, err := filepath.EvalSymlinks(candidate)
+		target, err := os.Readlink(candidate)
 		if err != nil {
 			continue
+		}
+		want := filepath.Clean(filepath.Join(filepath.Dir(candidate), target))
+		if filepath.IsAbs(target) {
+			want = filepath.Clean(target)
 		}
 		got, err := securedir.Canonical(candidate, securedir.Options{})
 		if err != nil {
@@ -695,5 +699,30 @@ func TestEnsureDoesNotCreateThroughALinkedAncestor(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(real, "data")); err == nil {
 		t.Error("a directory was created through the link")
+	}
+}
+
+// A link the walk may follow does not vouch for the links inside its target:
+// each hop is checked on its own.
+func TestCanonicalChecksTheLinkInsideAFollowedLinksTarget(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("a followed (root-owned) link needs root to create")
+	}
+	base := tempDir(t)
+	real := filepath.Join(base, "real")
+	mustMkdir(t, filepath.Join(real, "mid"))
+	outer := filepath.Join(base, "outer")
+	if err := os.Symlink(real, outer); err != nil {
+		t.Fatal(err)
+	}
+	inner := filepath.Join(real, "mid", "inner")
+	if err := os.Symlink(real, inner); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Lchown(inner, 65534, 65534); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := securedir.Canonical(filepath.Join(outer, "mid", "inner"), securedir.Options{}); !errors.Is(err, securedir.ErrReparsePoint) {
+		t.Fatalf("Canonical = %v; want ErrReparsePoint", err)
 	}
 }

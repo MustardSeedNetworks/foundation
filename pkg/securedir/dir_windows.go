@@ -257,11 +257,14 @@ func canonical(path string, trust trustSet) (string, error) {
 		if link == "" {
 			return resolved, nil
 		}
-		// The link is one we may follow, and everything above it was walked
-		// without following anything; EvalSymlinks only resolves the link.
-		target, err := filepath.EvalSymlinks(link)
+		// Read only this link's own target and walk again from the top, so a
+		// link inside the target gets the same owner and ancestor checks.
+		target, err := os.Readlink(link)
 		if err != nil {
-			return "", fmt.Errorf("securedir: resolve %s: %w", link, err)
+			return "", fmt.Errorf("securedir: read link %s: %w", link, err)
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(link), target)
 		}
 		path = filepath.Join(target, rest)
 	}
@@ -679,7 +682,7 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 	// FILE_READ_ATTRIBUTES is what the link-count and reparse checks below need.
 	handle, err := ntOpen(c.leaf.handle, base, access|windows.FILE_READ_ATTRIBUTES, shareNoDelete, disposition, windows.FILE_NON_DIRECTORY_FILE, sd)
 	if err != nil {
-		return nil, fmt.Errorf("securedir: open %s: %w", path, err)
+		return nil, notAFile(c.leaf.handle, base, path, err)
 	}
 	var info windows.ByHandleFileInformation
 	if err = windows.GetFileInformationByHandle(handle, &info); err != nil {
@@ -702,4 +705,26 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 		}
 	}
 	return file, nil
+}
+
+// notAFile explains a failed open of a file name: opening a junction or a
+// directory as a file is refused by the system with a bare access error, so
+// look at what the name is and report it as what it is.
+func notAFile(dir windows.Handle, name, path string, openErr error) error {
+	probe, err := ntOpen(dir, name, windows.FILE_READ_ATTRIBUTES, shareNoDelete|windows.FILE_SHARE_DELETE, windows.FILE_OPEN, 0, nil)
+	if err != nil {
+		return fmt.Errorf("securedir: open %s: %w", path, openErr)
+	}
+	defer func() { _ = windows.CloseHandle(probe) }()
+	var info windows.ByHandleFileInformation
+	if err = windows.GetFileInformationByHandle(probe, &info); err != nil {
+		return fmt.Errorf("securedir: open %s: %w", path, openErr)
+	}
+	switch {
+	case info.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0:
+		return fmt.Errorf("%w: %s", ErrReparsePoint, path)
+	case info.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY != 0:
+		return fmt.Errorf("securedir: %s is a directory", path)
+	}
+	return fmt.Errorf("securedir: open %s: %w", path, openErr)
 }
