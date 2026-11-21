@@ -10,6 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/MustardSeedNetworks/foundation/pkg/securedir"
 )
@@ -770,5 +773,76 @@ func TestOpenFileRefusesAFileWithAnUntrustedOwner(t *testing.T) {
 	}
 	if !errors.Is(err, securedir.ErrUntrustedOwner) {
 		t.Fatalf("OpenFile = %v; want ErrUntrustedOwner", err)
+	}
+}
+
+// A FIFO planted in the directory must not hang the privileged caller: the
+// open does not block, and the FIFO is refused.
+func TestAPlantedFIFOIsRefusedPromptly(t *testing.T) {
+	dir := filepath.Join(tempDir(t), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	fifo := filepath.Join(dir, "config")
+	if err := unix.Mkfifo(fifo, 0o600); err != nil {
+		t.Skipf("cannot create a FIFO here: %v", err)
+	}
+
+	calls := map[string]func() error{
+		"OpenFile read": func() error {
+			file, err := securedir.OpenFile(fifo, os.O_RDONLY, securedir.Options{})
+			if file != nil {
+				_ = file.Close()
+			}
+			return err
+		},
+		"OpenFile write": func() error {
+			file, err := securedir.OpenFile(fifo, os.O_WRONLY, securedir.Options{})
+			if file != nil {
+				_ = file.Close()
+			}
+			return err
+		},
+		"Verify": func() error { return securedir.Verify(dir, securedir.Options{}) },
+		"Ensure": func() error { return securedir.Ensure(dir, securedir.Options{}) },
+	}
+	for name, call := range calls {
+		done := make(chan error, 1)
+		go func() { done <- call() }()
+		select {
+		case err := <-done:
+			if !errors.Is(err, securedir.ErrUnsafeAccess) {
+				t.Errorf("%s = %v; want ErrUnsafeAccess", name, err)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("%s blocked on the FIFO", name)
+		}
+	}
+}
+
+func TestOpenFileReturnsABlockingDescriptor(t *testing.T) {
+	dir := filepath.Join(tempDir(t), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "f")
+	mustWrite(t, path, 0o600)
+	file, err := securedir.OpenFile(path, os.O_RDONLY, securedir.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	// Not file.Fd(), which would itself switch the descriptor to blocking.
+	conn, err := file.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var flags int
+	var flagsErr error
+	if err = conn.Control(func(fd uintptr) { flags, flagsErr = unix.FcntlInt(fd, unix.F_GETFL, 0) }); err != nil || flagsErr != nil {
+		t.Fatalf("read flags: %v %v", err, flagsErr)
+	}
+	if flags&unix.O_NONBLOCK != 0 {
+		t.Error("the returned file is still non-blocking")
 	}
 }

@@ -272,11 +272,13 @@ func walkTree(dirfd int, prefix string) error {
 			}
 			continue
 		}
+		if !isDir(st) {
+			// A FIFO, socket or device in a private directory is never
+			// something a privileged caller should open.
+			return fmt.Errorf("%w: %s is not a regular file or directory", ErrUnsafeAccess, path)
+		}
 		if err = checkEntry(path, st); err != nil {
 			return err
-		}
-		if !isDir(st) {
-			continue
 		}
 		sub, openErr := openDirAt(dirfd, entry.Name())
 		if openErr != nil {
@@ -462,16 +464,25 @@ func openFile(path string, flag int, _ trustSet) (*os.File, error) {
 
 	// Truncation waits until the link count has been checked: O_TRUNC on a
 	// file with a second name would empty the other name's content too.
+	// O_NONBLOCK keeps a planted FIFO from blocking the open forever before
+	// the type check can reject it; it is cleared again once the file is known
+	// to be a regular one, unless the caller asked for it.
 	truncate := flag&os.O_TRUNC != 0
-	fd, err := unix.Openat(dirfd, base, flag&^os.O_TRUNC|unix.O_NOFOLLOW|unix.O_CLOEXEC, fileMode)
+	fd, err := unix.Openat(dirfd, base, flag&^os.O_TRUNC|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, fileMode)
 	if errors.Is(err, unix.ELOOP) {
 		return nil, fmt.Errorf("%w: %s", ErrReparsePoint, path)
+	}
+	if errors.Is(err, unix.ENXIO) {
+		return nil, fmt.Errorf("%w: %s is not a regular file", ErrUnsafeAccess, path)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	file := os.NewFile(uintptr(fd), path)
 	err = checkOpenFile(fd, path)
+	if err == nil && flag&unix.O_NONBLOCK == 0 {
+		err = clearNonblock(fd)
+	}
 	if err == nil && truncate {
 		err = file.Truncate(0)
 	}
@@ -480,4 +491,13 @@ func openFile(path string, flag int, _ trustSet) (*os.File, error) {
 		return nil, err
 	}
 	return file, nil
+}
+
+func clearNonblock(fd int) error {
+	flags, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
+	if err != nil {
+		return err
+	}
+	_, err = unix.FcntlInt(uintptr(fd), unix.F_SETFL, flags&^unix.O_NONBLOCK)
+	return err
 }
