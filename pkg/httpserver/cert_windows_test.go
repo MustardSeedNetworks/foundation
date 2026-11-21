@@ -5,6 +5,8 @@
 package httpserver_test
 
 import (
+	"bytes"
+	"os"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -121,5 +123,36 @@ func TestEnsureCertificateSecuresTheCertificateDirectory(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("certificate directory grants %v; want exactly %v", got, want)
 		}
+	}
+}
+
+// A valid pair planted in a directory that grants Everyone write access is not
+// the server's identity: it is replaced.
+func TestEnsureCertificateDoesNotLoadAPairFromAnUnverifiedDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sd, err := windows.SecurityDescriptorFromString("D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;" + currentUserSID(t) + ")(A;OICI;FW;;;WD)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	acl, _, err := sd.DACL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = windows.SetNamedSecurityInfo(dir, windows.SE_FILE_OBJECT,
+		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, acl, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certPath, keyPath, planted := writePair(t, dir)
+
+	got, err := httpserver.EnsureCertificate(nil, certPath, keyPath, httpserver.CertOptions{})
+	if err != nil {
+		t.Fatalf("EnsureCertificate: %v", err)
+	}
+	if bytes.Equal(got.Certificate[0], planted.Certificate[0]) {
+		t.Fatal("the planted certificate was loaded as the server's identity")
 	}
 }

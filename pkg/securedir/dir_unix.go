@@ -145,6 +145,10 @@ func canonicalOnce(path string) (resolved, next string, err error) {
 		case statErr != nil:
 			return "", "", statErr
 		case isLink(entry):
+			// Only the owner matters for a symlink: its own permission bits are
+			// ignored and nobody can retarget one without write access to the
+			// directory holding it, which checkAncestor above has just ruled
+			// out (owner, mode and ACL).
 			if entry.Uid != 0 {
 				return "", "", fmt.Errorf("%w: %s is a link not owned by root", ErrReparsePoint, filepath.Join(current, name))
 			}
@@ -206,7 +210,10 @@ func openChain(path string, strict bool) (int, *unix.Stat_t, error) {
 	walked := "/"
 	for _, name := range parts {
 		if strict {
-			if err = checkAncestor(walked, st); err != nil {
+			if err = checkAncestor(walked, st); err == nil {
+				err = checkACL(fd, walked, true, true)
+			}
+			if err != nil {
 				_ = unix.Close(fd)
 				return -1, nil, err
 			}
@@ -254,19 +261,39 @@ func walkTree(dirfd int, prefix string) error {
 			return err
 		}
 		if !isDir(st) {
+			if err = checkFileACL(dirfd, entry.Name(), path, st); err != nil {
+				return err
+			}
 			continue
 		}
 		sub, openErr := openDirAt(dirfd, entry.Name())
 		if openErr != nil {
 			return openErr
 		}
-		err = walkTree(sub, path)
+		err = checkACL(sub, path, false, true)
+		if err == nil {
+			err = walkTree(sub, path)
+		}
 		_ = unix.Close(sub)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// checkFileACL checks the ACL of a regular file by opening it without
+// following a link; other kinds of entry carry no ACL worth reading.
+func checkFileACL(dirfd int, name, path string, st *unix.Stat_t) error {
+	if st.Mode&unix.S_IFMT != unix.S_IFREG {
+		return nil
+	}
+	fd, err := unix.Openat(dirfd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return fmt.Errorf("open %s to read its ACL: %w", path, err)
+	}
+	defer unix.Close(fd)
+	return checkACL(fd, path, false, false)
 }
 
 func ensure(path string, _ trustSet) error {
@@ -295,10 +322,14 @@ func ensure(path string, _ trustSet) error {
 	if err = ownerTrusted(st); err != nil {
 		return fmt.Errorf("%w (%s)", err, path)
 	}
-	// Lock the directory down first, through the descriptor that was checked,
+	// An ACL survives chmod and can grant a user write access to a 0700
+	// directory, so it goes first. After that, lock the directory down, through the descriptor that was checked,
 	// so nobody else can add entries while the tree is being judged; then walk.
 	// A tree that fails is reported but stays locked: the caller gets the error
 	// and the directory is no longer open to anyone else.
+	if err = stripACL(fd); err != nil {
+		return err
+	}
 	if err = unix.Fchmod(fd, dirMode); err != nil {
 		return err
 	}
@@ -315,6 +346,9 @@ func verify(path string, files []string, _ trustSet) error {
 	}
 	defer unix.Close(fd)
 	if err = checkEntry(path, st); err != nil {
+		return err
+	}
+	if err = checkACL(fd, path, false, true); err != nil {
 		return err
 	}
 	if err = walkTree(fd, path); err != nil {
@@ -336,7 +370,10 @@ func pinDir(dir string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	if err = checkEntry(dir, st); err != nil {
+	if err = checkEntry(dir, st); err == nil {
+		err = checkACL(fd, dir, false, true)
+	}
+	if err != nil {
 		_ = unix.Close(fd)
 		return -1, err
 	}

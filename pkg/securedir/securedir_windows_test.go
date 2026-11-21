@@ -142,6 +142,34 @@ func squat(t *testing.T, path string) {
 	}
 }
 
+// setLinkDACL replaces the DACL of a reparse point itself, not its target.
+func setLinkDACL(t *testing.T, path, sddl string) {
+	t.Helper()
+	sd, err := windows.SecurityDescriptorFromString(sddl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acl, _, err := sd.DACL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle, err := windows.CreateFile(name, windows.READ_CONTROL|windows.WRITE_DAC, shareNoDelete|windows.FILE_SHARE_DELETE, nil,
+		windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+	if err != nil {
+		t.Fatalf("open %s: %v", path, err)
+	}
+	defer func() { _ = windows.CloseHandle(handle) }()
+	err = windows.SetSecurityInfo(handle, windows.SE_FILE_OBJECT,
+		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, acl, nil)
+	if err != nil {
+		t.Fatalf("set DACL on %s: %v", path, err)
+	}
+}
+
 // squatLink hands a reparse point itself, not its target, to BUILTIN\Users.
 func squatLink(t *testing.T, path string) {
 	t.Helper()
@@ -734,4 +762,26 @@ func TestCanonicalChecksTheLinkInsideAFollowedLinksTarget(t *testing.T) {
 
 	_, err := Canonical(filepath.Join(outer, "mid", "inner"), userOpts(t))
 	expectErr(t, err, ErrReparsePoint)
+}
+
+// A junction owned by SYSTEM or an administrator is still retargetable by
+// whoever it grants write, DELETE or WRITE_DAC; that is checked on the link
+// itself, not only its owner.
+func TestCanonicalRefusesATrustedOwnedJunctionThatGrantsAUserWriteAccess(t *testing.T) {
+	user := currentUserSID(t)
+	for name, extra := range map[string]string{
+		"write":     "(A;;FW;;;BU)",
+		"delete":    "(A;;0x10000;;;BU)",
+		"write_dac": "(A;;WD;;;BU)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, link := junctionFixture(t)
+			if _, err := Canonical(filepath.Join(link, "mid"), userOpts(t)); err != nil {
+				t.Fatalf("Canonical before: %v", err)
+			}
+			setLinkDACL(t, link, "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;"+user+")"+extra)
+			_, err := Canonical(filepath.Join(link, "mid"), userOpts(t))
+			expectErr(t, err, ErrReparsePoint)
+		})
+	}
 }

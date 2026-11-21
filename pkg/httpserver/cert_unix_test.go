@@ -5,6 +5,7 @@
 package httpserver_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -134,3 +135,69 @@ func TestEnsureCertificateRefusesALinkAtTheKeyPath(t *testing.T) {
 		t.Errorf("the key was written through the link: %q", got)
 	}
 }
+
+// A valid pair planted where a user can write to the directory is not the
+// server's identity: it is replaced.
+func TestEnsureCertificateDoesNotLoadAPairFromAnUnverifiedDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	if err := mkdirMode(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := chmodMode(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	certPath, keyPath, planted := writePair(t, dir)
+
+	got, err := httpserver.EnsureCertificate(nil, certPath, keyPath, httpserver.CertOptions{})
+	if err != nil {
+		t.Fatalf("EnsureCertificate: %v", err)
+	}
+	if bytes.Equal(got.Certificate[0], planted.Certificate[0]) {
+		t.Fatal("the planted certificate was loaded as the server's identity")
+	}
+	if info, _ := os.Stat(dir); info.Mode().Perm() != 0o700 {
+		t.Errorf("directory mode = %#o; want 0700 after the take-over", info.Mode().Perm())
+	}
+}
+
+// A pair reached through a link planted by an unprivileged user is not loaded
+// either; the path is refused outright.
+func TestEnsureCertificateDoesNotLoadAPairThroughALink(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	if err := os.Mkdir(real, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writePair(t, real)
+	link := filepath.Join(base, "certs")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Lchown(link, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := httpserver.EnsureCertificate(nil, filepath.Join(link, "server.crt"), filepath.Join(link, "server.key"), httpserver.CertOptions{})
+	if err == nil {
+		t.Fatalf("EnsureCertificate loaded a pair through a link: %v", got.Leaf)
+	}
+}
+
+// A planted pair in a hard-linked or linked file is not loaded.
+func TestEnsureCertificateDoesNotLoadAHardLinkedKey(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	certPath, keyPath, planted := writePair(t, dir)
+	if err := os.Link(keyPath, filepath.Join(t.TempDir(), "other-name")); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+	got, err := httpserver.EnsureCertificate(nil, certPath, keyPath, httpserver.CertOptions{})
+	if err == nil && bytes.Equal(got.Certificate[0], planted.Certificate[0]) {
+		t.Fatal("a key with a second name was loaded")
+	}
+}
+
+func chmodMode(path string, perm os.FileMode) error { return os.Chmod(path, perm) }

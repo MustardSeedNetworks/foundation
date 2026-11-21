@@ -319,10 +319,13 @@ func canonicalOnce(path string, trust trustSet) (resolved, link, rest string, er
 		}
 		switch {
 		case child.isLink():
-			ownerErr := trust.checkOwner(child.desc)
+			// The link must be owned and controlled by trusted principals: an
+			// untrusted write, DELETE, WRITE_DAC or WRITE_OWNER grant on the
+			// link itself would let that principal retarget it.
+			linkErr := trust.checkObject(child.desc)
 			_ = windows.CloseHandle(handle)
-			if ownerErr != nil {
-				return "", "", "", fmt.Errorf("%w: %s is a link not owned by a trusted principal", ErrReparsePoint, filepath.Join(walked, name))
+			if linkErr != nil {
+				return "", "", "", fmt.Errorf("%w: %s is a link that trusted principals do not exclusively control: %w", ErrReparsePoint, filepath.Join(walked, name), linkErr)
 			}
 			return "", filepath.Join(walked, name), filepath.Join(parts[i+1:]...), nil
 		case !child.isDir() && i < len(parts)-1:

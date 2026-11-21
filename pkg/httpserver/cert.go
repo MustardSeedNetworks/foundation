@@ -13,11 +13,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"math/big"
 	"net"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -65,6 +68,14 @@ func SelfSignedCertificate(opts CertOptions) (tls.Certificate, error) {
 // self-signed pair there when the files are missing, unreadable as a pair, or
 // no longer cover what opts asks for.
 //
+// An existing pair is trusted only if it comes from directories and files that
+// pass [securedir.Verify] (trusted owner, no links, nothing writable by an
+// untrusted principal), read through [securedir.OpenFile] and parsed from the
+// bytes that were read. A pair that fails that is not loaded: it is replaced
+// with a freshly generated one, and the log says why. A directory that cannot
+// be taken over (a link, an untrusted owner, untrusted content) is an error
+// instead, since replacing the pair there would not make it safe.
+//
 // The coverage check is why this is not "if the file exists, use it": niac
 // learned that a certificate generated before loopback IP SANs were added
 // keeps being reused and keeps failing the browser. A certificate that does
@@ -76,23 +87,6 @@ func SelfSignedCertificate(opts CertOptions) (tls.Certificate, error) {
 // install this one, and the log is the only place that can tell them why.
 // A nil logger logs nothing, as with [Bind].
 func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertOptions) (tls.Certificate, error) {
-	existing, loadErr := tls.LoadX509KeyPair(certPath, keyPath)
-	reason := "missing"
-	switch {
-	case loadErr == nil:
-		reason = certificateProblem(existing, opts)
-		if reason == "" {
-			return existing, nil
-		}
-	case !errors.Is(loadErr, fs.ErrNotExist):
-		reason = "unreadable: " + loadErr.Error()
-	}
-
-	certPEM, keyPEM, genErr := selfSignedPEM(opts)
-	if genErr != nil {
-		return tls.Certificate{}, genErr
-	}
-
 	dirOpts, optsErr := certDirOptions(opts.Dir)
 	if optsErr != nil {
 		return tls.Certificate{}, optsErr
@@ -100,15 +94,32 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 	keyOpts := dirOpts
 	keyOpts.ExcludeAdministrators = true
 
-	// securedir never follows a link, so each directory is resolved once here,
-	// secured, and then written into by its resolved path.
-	certReal, certErr := securePath(certPath, dirOpts)
-	if certErr != nil {
-		return tls.Certificate{}, certErr
+	// securedir never follows a link, so the paths are resolved once here; a
+	// link an unprivileged user planted in them is an error, not a pair to use.
+	certReal, resolveErr := resolvePath(certPath, dirOpts)
+	if resolveErr != nil {
+		return tls.Certificate{}, resolveErr
 	}
-	keyReal, keyErr := securePath(keyPath, dirOpts)
-	if keyErr != nil {
-		return tls.Certificate{}, keyErr
+	keyReal, resolveErr := resolvePath(keyPath, dirOpts)
+	if resolveErr != nil {
+		return tls.Certificate{}, resolveErr
+	}
+
+	existing, reason := loadTrustedPair(certReal, keyReal, dirOpts)
+	if reason == "" {
+		if reason = certificateProblem(existing, opts); reason == "" {
+			return existing, nil
+		}
+	}
+
+	certPEM, keyPEM, genErr := selfSignedPEM(opts)
+	if genErr != nil {
+		return tls.Certificate{}, genErr
+	}
+	for _, dir := range uniqueDirs(certReal, keyReal) {
+		if ensureErr := securedir.Ensure(dir, dirOpts); ensureErr != nil {
+			return tls.Certificate{}, fmt.Errorf("secure certificate directory %s: %w", dir, ensureErr)
+		}
 	}
 	if writeErr := securedir.WriteFile(certReal, certPEM, dirOpts); writeErr != nil {
 		return tls.Certificate{}, fmt.Errorf("write certificate %s: %w", certPath, writeErr)
@@ -127,17 +138,73 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 	return cert, nil
 }
 
-// securePath resolves path's directory, makes it private and returns the path
-// of the file inside the resolved directory.
-func securePath(path string, opts securedir.Options) (string, error) {
-	dir, canonErr := securedir.Canonical(filepath.Dir(path), opts)
-	if canonErr != nil {
-		return "", fmt.Errorf("secure directory for %s: %w", path, canonErr)
-	}
-	if ensureErr := securedir.Ensure(dir, opts); ensureErr != nil {
-		return "", fmt.Errorf("secure directory for %s: %w", path, ensureErr)
+// resolvePath returns path with its directory resolved by securedir.Canonical.
+func resolvePath(path string, opts securedir.Options) (string, error) {
+	dir, err := securedir.Canonical(filepath.Dir(path), opts)
+	if err != nil {
+		return "", fmt.Errorf("resolve directory for %s: %w", path, err)
 	}
 	return filepath.Join(dir, filepath.Base(path)), nil
+}
+
+// loadTrustedPair loads an existing pair only from directories and files that
+// pass securedir.Verify, reading both through securedir.OpenFile so a link is
+// never followed, and parsing the bytes it read. A pair that is missing,
+// unreadable or fails verification is not trusted: the reason is returned and
+// the caller regenerates (securedir.Ensure then refuses a directory it cannot
+// take over, which is an error rather than a pair to load). An empty reason
+// means cert is the loaded pair.
+func loadTrustedPair(certPath, keyPath string, opts securedir.Options) (cert tls.Certificate, reason string) {
+	for _, dir := range uniqueDirs(certPath, keyPath) {
+		verify := opts
+		for _, path := range []string{certPath, keyPath} {
+			if filepath.Dir(path) == dir {
+				verify.Files = append(verify.Files, filepath.Base(path))
+			}
+		}
+		if err := securedir.Verify(dir, verify); err != nil {
+			return tls.Certificate{}, untrustedReason(err)
+		}
+	}
+	certPEM, err := readTrusted(certPath, opts)
+	if err != nil {
+		return tls.Certificate{}, untrustedReason(err)
+	}
+	keyPEM, err := readTrusted(keyPath, opts)
+	if err != nil {
+		return tls.Certificate{}, untrustedReason(err)
+	}
+	cert, err = tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return tls.Certificate{}, "unreadable: " + err.Error()
+	}
+	return cert, ""
+}
+
+func untrustedReason(err error) string {
+	if errors.Is(err, fs.ErrNotExist) {
+		return "missing"
+	}
+	return "untrusted: " + err.Error()
+}
+
+func readTrusted(path string, opts securedir.Options) ([]byte, error) {
+	file, err := securedir.OpenFile(path, os.O_RDONLY, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
+func uniqueDirs(paths ...string) []string {
+	var dirs []string
+	for _, path := range paths {
+		if dir := filepath.Dir(path); !slices.Contains(dirs, dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
 }
 
 func logGenerated(logger *slog.Logger, cert tls.Certificate, certPath, reason string) {
