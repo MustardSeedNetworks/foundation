@@ -4,10 +4,10 @@
 
 package httpserver
 
-import "os"
+import (
+	"github.com/MustardSeedNetworks/foundation/pkg/securedir"
+)
 
-// writePrivateKey writes the key owner-only. On unix the mode argument is the
-// whole story.
-func writePrivateKey(path string, keyPEM []byte) error {
-	return os.WriteFile(path, keyPEM, keyFileMode)
-}
+// certDirOptions is the directory policy as configured: unix needs nothing
+// added.
+func certDirOptions(opts securedir.Options) (securedir.Options, error) { return opts, nil }
