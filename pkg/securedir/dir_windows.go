@@ -40,7 +40,7 @@ func (o *object) isDir() bool  { return o.attrs&windows.FILE_ATTRIBUTE_DIRECTORY
 // what stops an ancestor being swapped for a junction while an operation runs.
 const (
 	shareNoDelete = windows.FILE_SHARE_READ | windows.FILE_SHARE_WRITE
-	dirAccess     = windows.READ_CONTROL | windows.FILE_LIST_DIRECTORY | windows.FILE_TRAVERSE | windows.SYNCHRONIZE
+	dirAccess     = windows.READ_CONTROL | windows.FILE_LIST_DIRECTORY | windows.FILE_TRAVERSE | windows.FILE_READ_ATTRIBUTES | windows.SYNCHRONIZE
 )
 
 // ntOpen opens name relative to parent through NtCreateFile with
@@ -175,7 +175,7 @@ func openChain(path string, strict, wantWriteDAC bool, trust trustSet) (*chain, 
 	if err != nil {
 		return nil, fmt.Errorf("securedir: path %q: %w", path, err)
 	}
-	root, err := windows.CreateFile(rootName, windows.READ_CONTROL|windows.FILE_LIST_DIRECTORY|windows.SYNCHRONIZE,
+	root, err := windows.CreateFile(rootName, windows.READ_CONTROL|windows.FILE_LIST_DIRECTORY|windows.FILE_READ_ATTRIBUTES|windows.SYNCHRONIZE,
 		shareNoDelete, nil, windows.OPEN_EXISTING,
 		windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
