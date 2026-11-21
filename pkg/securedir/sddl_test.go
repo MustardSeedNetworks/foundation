@@ -13,7 +13,7 @@ import (
 // everywhere; the Windows build asserts it agrees with the real one
 // (TestSDDLModelMatchesWindows).
 //
-// Supported: O:<sid>, D: with P/AI flags or NO_ACCESS_CONTROL, and ACEs of
+// Supported: O:<sid>, D: with its protection flags, or NO_ACCESS_CONTROL, and ACEs of
 // type A, D, OA, OD, XA, XD, ZA, ZD and AU with OI/CI/NP/IO/ID flags, rights
 // as aliases or 0x hex, and a SID or alias. A conditional expression after
 // the sixth field is ignored.

@@ -423,3 +423,72 @@ func TestOpenFile(t *testing.T) {
 	_, err = OpenFile(filepath.Join(dir, "swapped"), os.O_RDONLY, userOpts(t))
 	expectErr(t, err, ErrReparsePoint)
 }
+
+func TestVerifyRefusesAnUntrustedParentOwner(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "parent")
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(parent, "data")
+	if err := Ensure(dir, userOpts(t)); err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(dir, userOpts(t)); err != nil {
+		t.Fatalf("Verify before: %v", err)
+	}
+	squat(t, parent)
+	expectErr(t, Verify(dir, userOpts(t)), ErrUntrustedOwner)
+}
+
+func TestHardLinksAreRefused(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "data")
+	if err := Ensure(dir, userOpts(t)); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "outside")
+	if err := os.WriteFile(outside, []byte("precious"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(dir, "sub", "app.log")
+	if err := os.MkdirAll(filepath.Dir(linked), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(outside, linked); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+
+	expectErr(t, Verify(dir, userOpts(t)), ErrUnsafeAccess)
+	expectErr(t, Ensure(dir, userOpts(t)), ErrUnsafeAccess)
+	for _, flag := range []int{os.O_RDONLY, os.O_WRONLY | os.O_TRUNC} {
+		file, err := OpenFile(linked, flag, userOpts(t))
+		if file != nil {
+			_ = file.Close()
+		}
+		expectErr(t, err, ErrUnsafeAccess)
+	}
+	if got, _ := os.ReadFile(outside); string(got) != "precious" {
+		t.Errorf("the other name's content was changed: %q", got)
+	}
+}
+
+// Ensure applies the protected DACL before it reads the tree, so a tree that is
+// refused is still locked down.
+func TestEnsureLocksDownBeforeItWalks(t *testing.T) {
+	user := currentUserSID(t)
+	dir := filepath.Join(t.TempDir(), "data")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	setDACL(t, dir, "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;"+user+")(A;OICI;FA;;;WD)")
+	child := filepath.Join(dir, "f")
+	if err := os.WriteFile(child, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	setDACL(t, child, "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;"+user+")(A;;FW;;;WD)")
+
+	expectErr(t, Ensure(dir, userOpts(t)), ErrUnsafeAccess)
+	d, _ := readNamed(t, dir)
+	if got, want := grantees(d), wantGrantees(sidSystem, sidAdministrators, user); !slices.Equal(got, want) {
+		t.Fatalf("a refused take-over left the directory granting %v; want %v", got, want)
+	}
+}

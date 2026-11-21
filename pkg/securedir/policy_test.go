@@ -91,7 +91,11 @@ func TestCheckParent(t *testing.T) {
 	programData := "O:SYD:P(A;OICIIO;GA;;;CO)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;CI;0x6;;;BU)(A;OICIIO;GR;;;BU)"
 	runCases(t, trustSet.checkParent, []policyCase{
 		{name: "ProgramData defaults", sddl: programData},
-		{name: "owner is not examined", sddl: "O:BUD:P(A;;FA;;;SY)"},
+		{name: "owner is Users", sddl: "O:BUD:P(A;;FA;;;SY)", want: ErrUntrustedOwner},
+		{name: "owner is a user", sddl: "O:" + someUser + "D:P(A;;FA;;;SY)", want: ErrUntrustedOwner},
+		{name: "owner is TrustedInstaller", sddl: "O:" + sidTrustedInstaller + "D:P(A;;FA;;;SY)"},
+		{name: "extra account owns the parent", sddl: "O:" + serviceAccount + "D:P(A;;FA;;;SY)", extras: []string{serviceAccount}},
+		{name: "no owner", sddl: "D:P(A;;FA;;;SY)", want: ErrUntrustedOwner},
 		{name: "Users create files and subdirectories", sddl: "O:SYD:(A;;0x6;;;BU)"},
 		{name: "Users delete child", sddl: "O:SYD:(A;;0x40;;;BU)", want: ErrUnsafeAccess},
 		{name: "Users DELETE", sddl: "O:SYD:(A;;0x10000;;;BU)", want: ErrUnsafeAccess},

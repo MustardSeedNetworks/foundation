@@ -106,10 +106,17 @@ func ensure(path string, _ trustSet) error {
 	if err = ownerTrusted(info); err != nil {
 		return fmt.Errorf("%w (%s)", err, path)
 	}
-	if err = walkTree(root); err != nil {
-		return fmt.Errorf("refusing to take over %s: %w", path, err)
+	// Lock the directory down first, through the descriptor that was checked,
+	// so nobody else can add entries while the tree is being judged; then walk.
+	// A tree that fails is reported but stays locked: the caller gets the error
+	// and the directory is no longer open to anyone else.
+	if err = handle.Chmod(dirMode); err != nil {
+		return err
 	}
-	return handle.Chmod(dirMode)
+	if err = walkTree(root); err != nil {
+		return fmt.Errorf("refusing to trust the contents of %s: %w", path, err)
+	}
+	return nil
 }
 
 // walkTree checks everything under root at any depth: no symlinks, every owner
@@ -144,6 +151,9 @@ func verify(path string, files []string, _ trustSet) error {
 	if err != nil {
 		return err
 	}
+	if err = ownerTrusted(parentInfo); err != nil {
+		return fmt.Errorf("parent of %s: %w", path, err)
+	}
 	if mode := parentInfo.Mode(); mode&writableByOthers != 0 && mode&fs.ModeSticky == 0 {
 		return fmt.Errorf("%w: parent of %s is writable by group or others", ErrUnsafeAccess, path)
 	}
@@ -177,6 +187,11 @@ func checkEntry(path string, info fs.FileInfo) error {
 	}
 	if info.Mode().Perm()&writableByOthers != 0 {
 		return fmt.Errorf("%w: %s is writable by group or others", ErrUnsafeAccess, path)
+	}
+	// A second name for a file means someone can reach its content from
+	// outside the directory, or has pointed a name inside at a file elsewhere.
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok && !info.IsDir() && stat.Nlink > 1 {
+		return fmt.Errorf("%w: %s has %d hard links", ErrUnsafeAccess, path, stat.Nlink)
 	}
 	return nil
 }
@@ -251,9 +266,28 @@ func openFile(path string, flag int, _ trustSet) (*os.File, error) {
 	if info, lstatErr := root.Lstat(base); lstatErr == nil && info.Mode()&fs.ModeSymlink != 0 {
 		return nil, fmt.Errorf("%w: %s", ErrReparsePoint, path)
 	}
-	file, err := root.OpenFile(base, flag|syscall.O_NOFOLLOW, fileMode)
+	// Truncation waits until the link count has been checked: O_TRUNC on a
+	// file with a second name would empty the other name's content too.
+	truncate := flag&os.O_TRUNC != 0
+	file, err := root.OpenFile(base, flag&^os.O_TRUNC|syscall.O_NOFOLLOW, fileMode)
 	if errors.Is(err, syscall.ELOOP) {
 		return nil, fmt.Errorf("%w: %s", ErrReparsePoint, path)
 	}
-	return file, err
+	if err != nil {
+		return nil, err
+	}
+	info, err := file.Stat()
+	if err == nil {
+		if stat, ok := info.Sys().(*syscall.Stat_t); !ok || stat.Nlink != 1 {
+			err = fmt.Errorf("%w: %s does not have exactly one link", ErrUnsafeAccess, path)
+		}
+	}
+	if err == nil && truncate {
+		err = file.Truncate(0)
+	}
+	if err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	return file, nil
 }

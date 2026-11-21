@@ -138,8 +138,13 @@ func (s trustSet) checkObject(d descriptor) error {
 	return s.checkDACL(d, maskModify, false)
 }
 
-// checkParent is the check for the directory above the private one.
+// checkParent is the check for the directory above the private one. Its owner
+// matters as much as its DACL: an owner can rewrite the ACL, so an untrusted
+// one could grant itself the right to delete the private directory later.
 func (s trustSet) checkParent(d descriptor) error {
+	if err := s.checkOwner(d); err != nil {
+		return err
+	}
 	return s.checkDACL(d, maskParentRemove, true)
 }
 

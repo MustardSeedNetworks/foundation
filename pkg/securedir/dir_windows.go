@@ -26,6 +26,7 @@ type object struct {
 	desc        descriptor
 	attrs       uint32
 	canWriteDAC bool
+	links       uint32
 }
 
 func (o *object) close() { _ = windows.CloseHandle(o.handle) }
@@ -71,6 +72,7 @@ func openObject(path string, follow, wantWriteDAC bool) (*object, error) {
 		return nil, fmt.Errorf("securedir: stat %s: %w", path, err)
 	}
 	obj.attrs = info.FileAttributes
+	obj.links = info.NumberOfLinks
 	if obj.desc, err = readDescriptor(handle); err != nil {
 		obj.close()
 		return nil, fmt.Errorf("securedir: read security of %s: %w", path, err)
@@ -175,9 +177,6 @@ func ensure(path string, trust trustSet) error {
 	if err = trust.checkOwner(obj.desc); err != nil {
 		return fmt.Errorf("%w (%s)", err, path)
 	}
-	if err = walkTree(path, trust); err != nil {
-		return fmt.Errorf("refusing to take over %s: %w", path, err)
-	}
 	if !obj.canWriteDAC {
 		return fmt.Errorf("securedir: cannot replace the access control of %s: %w", path, windows.ERROR_ACCESS_DENIED)
 	}
@@ -196,6 +195,11 @@ func ensure(path string, trust trustSet) error {
 		nil, nil, acl, nil)
 	if err != nil {
 		return fmt.Errorf("securedir: set access control of %s: %w", path, err)
+	}
+	// Locked down first, then judged: while the tree was being read nobody
+	// else could add to it. A tree that fails is reported but stays locked.
+	if err = walkTree(path, trust); err != nil {
+		return fmt.Errorf("refusing to trust the contents of %s: %w", path, err)
 	}
 	return nil
 }
@@ -265,6 +269,9 @@ func checkOne(path string, obj *object, wantDir bool, trust trustSet) error {
 	}
 	if obj.isDir() != wantDir {
 		return fmt.Errorf("securedir: %s has the wrong type for a private directory entry", path)
+	}
+	if !wantDir && obj.links > 1 {
+		return fmt.Errorf("%w: %s has %d hard links", ErrUnsafeAccess, path, obj.links)
 	}
 	if err := trust.checkObject(obj.desc); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
@@ -414,16 +421,14 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 	if flag&os.O_APPEND != 0 {
 		access = access&^windows.GENERIC_WRITE | windows.FILE_APPEND_DATA
 	}
+	// Truncation waits until the link count has been checked: truncating a
+	// file with a second name would empty the other name's content too.
 	var disposition uint32
 	switch {
 	case flag&(os.O_CREATE|os.O_EXCL) == os.O_CREATE|os.O_EXCL:
 		disposition = windows.CREATE_NEW
-	case flag&(os.O_CREATE|os.O_TRUNC) == os.O_CREATE|os.O_TRUNC:
-		disposition = windows.CREATE_ALWAYS
 	case flag&os.O_CREATE != 0:
 		disposition = windows.OPEN_ALWAYS
-	case flag&os.O_TRUNC != 0:
-		disposition = windows.TRUNCATE_EXISTING
 	default:
 		disposition = windows.OPEN_EXISTING
 	}
@@ -452,7 +457,18 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 		_ = windows.CloseHandle(handle)
 		return nil, fmt.Errorf("%w: %s", ErrReparsePoint, path)
 	}
-	return os.NewFile(uintptr(handle), path), nil
+	if info.NumberOfLinks != 1 {
+		_ = windows.CloseHandle(handle)
+		return nil, fmt.Errorf("%w: %s does not have exactly one link", ErrUnsafeAccess, path)
+	}
+	file := os.NewFile(uintptr(handle), path)
+	if flag&os.O_TRUNC != 0 {
+		if err = file.Truncate(0); err != nil {
+			_ = file.Close()
+			return nil, fmt.Errorf("securedir: truncate %s: %w", path, err)
+		}
+	}
+	return file, nil
 }
 
 // removeFile is best-effort cleanup of a temporary file after a failed write;

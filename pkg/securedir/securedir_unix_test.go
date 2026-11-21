@@ -284,6 +284,20 @@ func TestTreeWalk(t *testing.T) {
 			mustMkdir(t, filepath.Join(dir, "a", "b"))
 			mustWrite(t, filepath.Join(dir, "a", "b", "f"), 0o666)
 		}, securedir.ErrUnsafeAccess},
+		{"hard link to a file outside", func(t *testing.T, dir string) {
+			outside := filepath.Join(t.TempDir(), "outside")
+			mustWrite(t, outside, 0o600)
+			if err := os.Link(outside, filepath.Join(dir, "linked")); err != nil {
+				t.Skipf("hard links unavailable: %v", err)
+			}
+		}, securedir.ErrUnsafeAccess},
+		{"two names inside the tree", func(t *testing.T, dir string) {
+			mustMkdir(t, filepath.Join(dir, "a"))
+			mustWrite(t, filepath.Join(dir, "one"), 0o600)
+			if err := os.Link(filepath.Join(dir, "one"), filepath.Join(dir, "a", "two")); err != nil {
+				t.Skipf("hard links unavailable: %v", err)
+			}
+		}, securedir.ErrUnsafeAccess},
 		{"deep writable directory", func(t *testing.T, dir string) {
 			mustMkdir(t, filepath.Join(dir, "a", "b"))
 			if err := chmod(filepath.Join(dir, "a", "b"), 0o777); err != nil {
@@ -304,8 +318,9 @@ func TestTreeWalk(t *testing.T) {
 				t.Errorf("Verify = %v; want %v", err, tc.want)
 			}
 
-			// Ensure on the same existing tree must agree, and must not have
-			// re-owned it: loosen the top directory so a take-over would show.
+			// Ensure on the same existing tree must agree. It locks the
+			// directory down before judging the contents, so a tree that fails
+			// is reported with the directory already at 0700, never left open.
 			if err := chmod(dir, 0o750); err != nil {
 				t.Fatal(err)
 			}
@@ -313,12 +328,8 @@ func TestTreeWalk(t *testing.T) {
 			if !errors.Is(err, tc.want) || (tc.want == nil && err != nil) {
 				t.Errorf("Ensure = %v; want %v", err, tc.want)
 			}
-			wantMode := fs.FileMode(0o750)
-			if tc.want == nil {
-				wantMode = 0o700
-			}
-			if got := mode(t, dir).Perm(); got != wantMode {
-				t.Errorf("directory mode after Ensure = %#o; want %#o", got, wantMode)
+			if got := mode(t, dir).Perm(); got != 0o700 {
+				t.Errorf("directory mode after Ensure = %#o; want 0700 whatever the verdict", got)
 			}
 		})
 	}
@@ -402,4 +413,72 @@ func TestOpenFile(t *testing.T) {
 			t.Fatalf("OpenFile = %v; want fs.ErrNotExist", err)
 		}
 	})
+}
+
+func TestOpenFileRefusesAHardLinkAndDoesNotTruncateIt(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "outside")
+	if err := os.WriteFile(outside, []byte("precious"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(dir, "app.log")
+	if err := os.Link(outside, linked); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+
+	for _, flag := range []int{os.O_RDONLY, os.O_WRONLY | os.O_TRUNC, os.O_WRONLY | os.O_CREATE | os.O_TRUNC} {
+		file, err := securedir.OpenFile(linked, flag, securedir.Options{})
+		if !errors.Is(err, securedir.ErrUnsafeAccess) {
+			if file != nil {
+				_ = file.Close()
+			}
+			t.Errorf("flag %#x: OpenFile(hard link) = %v; want ErrUnsafeAccess", flag, err)
+		}
+	}
+	if got, _ := os.ReadFile(outside); string(got) != "precious" {
+		t.Errorf("the other name's content was changed: %q", got)
+	}
+}
+
+func TestOpenFileTruncatesAnOrdinaryFile(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "data")
+	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "f")
+	mustWrite(t, path, 0o600)
+	file, err := securedir.OpenFile(path, os.O_WRONLY|os.O_TRUNC, securedir.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = file.Close()
+	if info, _ := os.Stat(path); info.Size() != 0 {
+		t.Errorf("size = %d; want 0", info.Size())
+	}
+}
+
+// Ensure must close the window between "this directory is acceptable" and "it
+// is private": the directory is 0700 by the time the contents are examined, so
+// an entry another user adds while the walk runs cannot be missed. The hook is
+// the walk itself: a loose child makes Ensure fail, and the failure must find
+// the directory already locked.
+func TestEnsureLocksDownBeforeItWalks(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "data")
+	if err := mkdirMode(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := chmod(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(dir, "loose"), 0o666)
+
+	if err := securedir.Ensure(dir, securedir.Options{}); !errors.Is(err, securedir.ErrUnsafeAccess) {
+		t.Fatalf("Ensure = %v; want ErrUnsafeAccess", err)
+	}
+	if got := mode(t, dir).Perm(); got != 0o700 {
+		t.Errorf("directory left at %#o after a refused take-over; want 0700", got)
+	}
 }
