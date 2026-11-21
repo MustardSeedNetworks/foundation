@@ -138,6 +138,11 @@ func canonicalOnce(path string) (resolved, next string, err error) {
 		if err = checkAncestor(current, st); err != nil {
 			return "", "", err
 		}
+		// The directory's ACL decides who can retarget a link in it just as
+		// much as its mode does.
+		if err = checkACL(fd, current, true, true); err != nil {
+			return "", "", err
+		}
 		entry, statErr := lstatAt(fd, name)
 		switch {
 		case errors.Is(statErr, unix.ENOENT):
@@ -209,14 +214,18 @@ func openChain(path string, strict bool) (int, *unix.Stat_t, error) {
 	parts := components(path)
 	walked := "/"
 	for _, name := range parts {
+		// The ACL is checked even when the ancestor policy is not (Ensure): an
+		// ACL grant is the one thing that lets a user act on a directory whose
+		// mode looks closed.
 		if strict {
-			if err = checkAncestor(walked, st); err == nil {
-				err = checkACL(fd, walked, true, true)
-			}
-			if err != nil {
-				_ = unix.Close(fd)
-				return -1, nil, err
-			}
+			err = checkAncestor(walked, st)
+		}
+		if err == nil {
+			err = checkACL(fd, walked, true, true)
+		}
+		if err != nil {
+			_ = unix.Close(fd)
+			return -1, nil, err
 		}
 		next, openErr := openDirAt(fd, name)
 		_ = unix.Close(fd)

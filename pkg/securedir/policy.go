@@ -40,18 +40,23 @@ const (
 	maskGenericWrite = 0x40000000
 	maskGenericAll   = 0x10000000
 
+	// Concrete rights the generic bits stand for (FILE_ALL_ACCESS and
+	// FILE_GENERIC_WRITE). Inherit-only ACEs are stored with generic bits
+	// unmapped, so they are expanded before the masks are applied. Generic write
+	// is create and attribute rights only on Windows, with no DELETE or
+	// DELETE_CHILD, which is why it passes the parent check and not this one.
+	rightsGenericAll   = 0x001f01ff
+	rightsGenericWrite = 0x00120116
+
 	// maskModify is everything that lets a principal change the object, its
-	// contents or its permissions. Generic bits are included because
-	// inherit-only ACEs are stored without them mapped.
+	// contents or its permissions.
 	maskModify = maskAddFile | maskAddSubdir | maskWriteEA | maskDeleteChild |
-		maskWriteAttrs | maskDelete | maskWriteDAC | maskWriteOwner |
-		maskGenericWrite | maskGenericAll
+		maskWriteAttrs | maskDelete | maskWriteDAC | maskWriteOwner
 
 	// maskParentRemove is what a parent must not grant: the ability to delete
 	// or rename the directory under it, or to change the parent's own ACL to
 	// obtain that. Creating new entries is deliberately absent; see Verify.
-	maskParentRemove = maskDeleteChild | maskDelete | maskWriteDAC |
-		maskWriteOwner | maskGenericAll
+	maskParentRemove = maskDeleteChild | maskDelete | maskWriteDAC | maskWriteOwner
 )
 
 // ace is one entry of a DACL, reduced to what the decision needs. sid is empty
@@ -121,8 +126,8 @@ func (s trustSet) checkDACL(d descriptor, mask uint32, skipInheritOnly bool) err
 		if skipInheritOnly && e.flags&aceInheritOnly != 0 {
 			continue
 		}
-		if e.mask&mask != 0 && !s.has(e.sid) {
-			return fmt.Errorf("%w: %s holds access %#x", ErrUnsafeAccess, e.sid, e.mask&mask)
+		if granted := normalizeMask(e.mask) & mask; granted != 0 && !s.has(e.sid) {
+			return fmt.Errorf("%w: %s holds access %#x", ErrUnsafeAccess, e.sid, granted)
 		}
 	}
 	return nil
@@ -146,6 +151,18 @@ func (s trustSet) checkParent(d descriptor) error {
 		return err
 	}
 	return s.checkDACL(d, maskParentRemove, true)
+}
+
+// normalizeMask replaces GENERIC_ALL and GENERIC_WRITE with the concrete rights
+// they stand for.
+func normalizeMask(mask uint32) uint32 {
+	if mask&maskGenericAll != 0 {
+		mask |= rightsGenericAll
+	}
+	if mask&maskGenericWrite != 0 {
+		mask |= rightsGenericWrite
+	}
+	return mask
 }
 
 // parseACE decodes one raw ACE as returned by GetAce. Only allow and deny

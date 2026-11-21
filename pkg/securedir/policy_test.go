@@ -102,6 +102,8 @@ func TestCheckParent(t *testing.T) {
 		{name: "Users WRITE_DAC", sddl: "O:SYD:(A;;WD;;;BU)", want: ErrUnsafeAccess},
 		{name: "Users WRITE_OWNER", sddl: "O:SYD:(A;;WO;;;BU)", want: ErrUnsafeAccess},
 		{name: "Users full control", sddl: "O:SYD:(A;;FA;;;BU)", want: ErrUnsafeAccess},
+		{name: "unmapped generic all", sddl: "O:SYD:(A;;GA;;;BU)", want: ErrUnsafeAccess},
+		{name: "unmapped generic write is create and attribute rights only", sddl: "O:SYD:(A;;GW;;;BU)"},
 		{name: "inherit-only full control does not apply to the parent", sddl: "O:SYD:(A;OICIIO;FA;;;BU)"},
 		{name: "object ACE with delete child", sddl: "O:SYD:(OA;;0x40;bf967aba-0de6-11d0-a285-00aa003049f2;;BU)", want: ErrUnsafeAccess},
 		{name: "extra account may delete", sddl: "O:SYD:(A;;FA;;;" + serviceAccount + ")", extras: []string{serviceAccount}},

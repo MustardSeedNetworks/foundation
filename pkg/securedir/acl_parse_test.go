@@ -11,7 +11,7 @@ import (
 )
 
 func filesec(entries ...[]byte) []byte {
-	blob := binary.LittleEndian.AppendUint32(nil, filesecMagic)
+	blob := binary.LittleEndian.AppendUint32(nil, filesecSignature)
 	blob = append(blob, make([]byte, 32)...) // owner and group GUIDs, unset
 	blob = binary.LittleEndian.AppendUint32(blob, uint32(len(entries)&0xffff))
 	blob = binary.LittleEndian.AppendUint32(blob, 0)
@@ -56,9 +56,12 @@ func TestFilesecACLUnsafe(t *testing.T) {
 		{"another user may write", filesec(filesecEntry(userGUID(502), aceKindPermit, aclWriteData)), aclModify, true},
 		{"unknown entry kind", filesec(filesecEntry(everyone, 9, 0)), aclModify, true},
 		{"ancestor: create is fine", filesec(filesecEntry(everyone, aceKindPermit, aclWriteData|aclAppend)), aclRemove, false},
+		{"ancestor: generic write includes delete_child", filesec(filesecEntry(everyone, aceKindPermit, aclGenericWr)), aclRemove, true},
+		{"ancestor: generic all", filesec(filesecEntry(everyone, aceKindPermit, aclGenericAll)), aclRemove, true},
+		{"generic all on an object", filesec(filesecEntry(everyone, aceKindPermit, aclGenericAll)), aclModify, true},
 		{"ancestor: delete_child is not", filesec(filesecEntry(everyone, aceKindPermit, aclDeleteKid)), aclRemove, true},
 		{"truncated", filesec(filesecEntry(everyone, aceKindPermit, aclDelete))[:filesecHeader+8+10], aclModify, true},
-		{"bad magic", append([]byte{1, 2, 3, 4}, make([]byte, 60)...), aclModify, true},
+		{"bad signature", append([]byte{1, 2, 3, 4}, make([]byte, 60)...), aclModify, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

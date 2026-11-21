@@ -17,13 +17,13 @@ import (
 // on every unix; the platform files only fetch the bytes.
 
 // kauth_filesec as macOS returns it from getattrlist(ATTR_CMN_EXTENDED_SECURITY):
-// magic, owner GUID, group GUID, then a kauth_acl (entry count, flags, entries
+// signature, owner GUID, group GUID, then a kauth_acl (entry count, flags, entries
 // of GUID + flags + rights).
 const (
-	filesecMagic    = 0x012cc16d
-	filesecNoACL    = 0xffffffff // entry count meaning "no ACL"
-	filesecHeader   = 4 + 16 + 16
-	filesecEntryLen = 16 + 4 + 4
+	filesecSignature = 0x012cc16d
+	filesecNoACL     = 0xffffffff // entry count meaning "no ACL"
+	filesecHeader    = 4 + 16 + 16
+	filesecEntryLen  = 16 + 4 + 4
 
 	aceKindMask   = 0xf
 	aceKindPermit = 1
@@ -41,13 +41,32 @@ const (
 	aclGenericAll = 1 << 21
 	aclGenericWr  = 1 << 23
 
+	// Concrete rights each generic right stands for. macOS defines the generic
+	// write set to include DELETE, DELETE_CHILD and WRITE_SECURITY, so a generic
+	// write grant is a grant to remove and re-permission, not only to create.
+	aclAllRights          = 0x3ffe // READ_DATA (bit 1) through TAKE_OWNERSHIP (bit 13)
+	aclGenericWriteRights = aclWriteData | aclAppend | aclDelete | aclDeleteKid |
+		aclWriteAttr | aclWriteXattr | aclWriteSec
+
 	// aclModify is everything that lets a principal change an object or its
 	// permissions; aclRemove is what an ancestor must not grant: removing or
 	// renaming what is below it, or changing its own ACL to be able to.
 	aclModify = aclWriteData | aclDelete | aclAppend | aclDeleteKid | aclWriteAttr |
-		aclWriteXattr | aclWriteSec | aclChown | aclGenericAll | aclGenericWr
-	aclRemove = aclDelete | aclDeleteKid | aclWriteSec | aclChown | aclGenericAll
+		aclWriteXattr | aclWriteSec | aclChown
+	aclRemove = aclDelete | aclDeleteKid | aclWriteSec | aclChown
 )
+
+// normalizeRights replaces the generic bits with the concrete rights they
+// stand for, so the masks only have to name concrete rights.
+func normalizeRights(rights uint32) uint32 {
+	if rights&aclGenericAll != 0 {
+		rights |= aclAllRights
+	}
+	if rights&aclGenericWr != 0 {
+		rights |= aclGenericWriteRights
+	}
+	return rights
+}
 
 // userGUID is the GUID macOS derives for a local user: a fixed 12-byte prefix
 // and the uid. Directory-service accounts have other GUIDs and so are never
@@ -65,7 +84,7 @@ func filesecACLUnsafe(blob []byte, mask uint32, trustedUIDs []uint32) error {
 	if len(blob) == 0 {
 		return nil
 	}
-	if len(blob) < filesecHeader+8 || binary.LittleEndian.Uint32(blob) != filesecMagic {
+	if len(blob) < filesecHeader+8 || binary.LittleEndian.Uint32(blob) != filesecSignature {
 		return fmt.Errorf("%w: unreadable extended ACL", ErrUnsafeAccess)
 	}
 	count := binary.LittleEndian.Uint32(blob[filesecHeader:])
@@ -86,7 +105,7 @@ func filesecACLUnsafe(blob []byte, mask uint32, trustedUIDs []uint32) error {
 		var who [16]byte
 		copy(who[:], entry[:16])
 		kind := binary.LittleEndian.Uint32(entry[16:]) & aceKindMask
-		rights := binary.LittleEndian.Uint32(entry[20:])
+		rights := normalizeRights(binary.LittleEndian.Uint32(entry[20:]))
 		switch kind {
 		case aceKindDeny, aceKindAudit, aceKindAlarm:
 			continue

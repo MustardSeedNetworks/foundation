@@ -70,3 +70,14 @@ func TestPOSIXACLOnAFileInTheTreeIsRefused(t *testing.T) {
 		t.Errorf("Ensure = %v; want ErrUnsafeAccess", err)
 	}
 }
+
+func TestCanonicalRefusesALinkInADirectoryWithAnACLGrant(t *testing.T) {
+	base := tempDir(t)
+	link := plantedLink(t, base)
+	setfacl(t, "-m", "g:65534:rwx", base)
+
+	_, err := securedir.Canonical(filepath.Join(link, "mid", "data"), securedir.Options{})
+	if !errors.Is(err, securedir.ErrUnsafeAccess) {
+		t.Fatalf("Canonical = %v; want ErrUnsafeAccess", err)
+	}
+}

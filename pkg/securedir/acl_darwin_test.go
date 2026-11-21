@@ -77,3 +77,18 @@ func TestExtendedACLOnAnAncestorIsRefused(t *testing.T) {
 		t.Errorf("Verify = %v; want ErrUnsafeAccess", err)
 	}
 }
+
+// An ACL grant on the directory that holds a link lets that principal retarget
+// it. The directory is checked before the link is looked at, so this is refused
+// as unsafe access, not as a link (which is what the unprivileged owner of the
+// link would otherwise get).
+func TestCanonicalRefusesALinkInADirectoryWithAnACLGrant(t *testing.T) {
+	base := tempDir(t)
+	link := plantedLink(t, base)
+	plantACL(t, base, "everyone allow delete_child")
+
+	_, err := securedir.Canonical(filepath.Join(link, "mid", "data"), securedir.Options{})
+	if !errors.Is(err, securedir.ErrUnsafeAccess) {
+		t.Fatalf("Canonical = %v; want ErrUnsafeAccess", err)
+	}
+}
