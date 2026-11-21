@@ -102,60 +102,23 @@ func components(path string) []string {
 	return strings.FieldsFunc(path, func(r rune) bool { return r == '/' })
 }
 
-// resolveTrusted follows symlinks among the ancestors of path, but only ones
-// owned by root: those were placed by a trusted principal (macOS has /var and
-// /tmp as such links) and an unprivileged user cannot create one. A symlink
-// owned by anyone else is an ErrReparsePoint. The last element is never
-// followed. The result is only a starting point; openChain re-walks it without
-// following anything.
-func resolveTrusted(path string) (string, error) {
-	for range 40 {
-		parts := components(path)
-		current, followed, missing := "/", false, false
-		for i := 0; i < len(parts)-1; i++ {
-			next := filepath.Join(current, parts[i])
-			var st unix.Stat_t
-			if unix.Lstat(next, &st) != nil {
-				missing = true // openChain reports what is wrong with it
-				break
-			}
-			if !isLink(&st) {
-				current = next
-				continue
-			}
-			if st.Uid != 0 {
-				return "", fmt.Errorf("%w: %s", ErrReparsePoint, next)
-			}
-			target, err := os.Readlink(next)
-			if err != nil {
-				return "", err
-			}
-			if !filepath.IsAbs(target) {
-				target = filepath.Join(current, target)
-			}
-			path = filepath.Join(append([]string{target}, parts[i+1:]...)...)
-			followed = true
-			break
-		}
-		if missing || !followed {
-			return path, nil
-		}
+// checkNoLinks reports whether the chain down to dir contains a link.
+func checkNoLinks(dir string) error {
+	fd, _, err := openChain(dir, false)
+	if err != nil {
+		return err
 	}
-	return "", fmt.Errorf("%w: too many levels of symbolic links in %s", ErrReparsePoint, path)
+	return unix.Close(fd)
 }
 
 // openChain opens path as a directory by walking from / one component at a
 // time with openat and O_NOFOLLOW, so the descriptor it returns is the
 // directory that was checked and not whatever the path names a moment later. A
-// link anywhere in the chain is refused (root-owned links among the ancestors
-// are resolved first, see resolveTrusted). With strict, every ancestor is
+// link anywhere in the chain is refused; callers pass a path from [Canonical].
+// With strict, every ancestor is
 // checked with checkAncestor; Ensure passes false because it is the step that
 // builds the chain. The caller owns the descriptor and the leaf's checks.
 func openChain(path string, strict bool) (int, *unix.Stat_t, error) {
-	resolved, err := resolveTrusted(path)
-	if err != nil {
-		return -1, nil, err
-	}
 	fd, err := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return -1, nil, err
@@ -166,7 +129,7 @@ func openChain(path string, strict bool) (int, *unix.Stat_t, error) {
 		return -1, nil, err
 	}
 
-	parts := components(resolved)
+	parts := components(path)
 	walked := "/"
 	for _, name := range parts {
 		if strict {
@@ -234,19 +197,20 @@ func walkTree(dirfd int, prefix string) error {
 }
 
 func ensure(path string, _ trustSet) error {
-	parent, err := os.OpenRoot(filepath.Dir(path))
-	if errors.Is(err, fs.ErrNotExist) && filepath.Dir(path) != path {
-		if err = ensure(filepath.Dir(path), trustSet{}); err != nil {
+	parent := filepath.Dir(path)
+	parentFD, _, err := openChain(parent, false)
+	if errors.Is(err, fs.ErrNotExist) && parent != path {
+		if err = ensure(parent, trustSet{}); err != nil {
 			return err
 		}
-		parent, err = os.OpenRoot(filepath.Dir(path))
+		parentFD, _, err = openChain(parent, false)
 	}
 	if err != nil {
 		return err
 	}
-	err = parent.Mkdir(filepath.Base(path), dirMode)
-	_ = parent.Close()
-	if err != nil && !errors.Is(err, fs.ErrExist) {
+	err = unix.Mkdirat(parentFD, filepath.Base(path), dirMode)
+	_ = unix.Close(parentFD)
+	if err != nil && !errors.Is(err, unix.EEXIST) {
 		return err
 	}
 

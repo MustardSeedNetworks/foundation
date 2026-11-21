@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/windows"
@@ -631,5 +632,44 @@ func TestSwapBeforeTheCallIsRefused(t *testing.T) {
 	expectErr(t, WriteFile(filepath.Join(data, "f"), []byte("x"), userOpts(t)), ErrReparsePoint)
 	if entries, _ := os.ReadDir(attacker); len(entries) != 0 {
 		t.Errorf("a file landed in the attacker's directory: %v", entries)
+	}
+}
+
+func TestCanonicalResolvesJunctionsAndKeepsMissingComponents(t *testing.T) {
+	base, err := Canonical(t.TempDir())
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	real := filepath.Join(base, "real")
+	if err = os.MkdirAll(filepath.Join(real, "mid"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "link")
+	makeJunction(t, link, real)
+
+	got, err := Canonical(filepath.Join(link, "mid", "not", "yet"))
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	if want := filepath.Join(real, "mid", "not", "yet"); !strings.EqualFold(got, want) {
+		t.Errorf("Canonical = %s; want %s", got, want)
+	}
+	if err = Ensure(got, userOpts(t)); err != nil {
+		t.Errorf("Ensure on the canonical path: %v", err)
+	}
+}
+
+func TestEnsureDoesNotCreateThroughAJunctionedAncestor(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	if err := os.Mkdir(real, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "link")
+	makeJunction(t, link, real)
+
+	expectErr(t, Ensure(filepath.Join(link, "data"), userOpts(t)), ErrReparsePoint)
+	if _, err := os.Lstat(filepath.Join(real, "data")); err == nil {
+		t.Error("a directory was created through the junction")
 	}
 }

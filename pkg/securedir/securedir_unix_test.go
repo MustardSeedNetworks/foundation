@@ -20,6 +20,17 @@ func chmod(path string, perm fs.FileMode) error { return os.Chmod(path, perm) }
 
 func mkdirMode(path string, perm fs.FileMode) error { return os.Mkdir(path, perm) }
 
+// tempDir is t.TempDir() with links resolved, as securedir requires of its
+// callers (on macOS the temporary directory sits behind the /var link).
+func tempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := securedir.Canonical(t.TempDir())
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	return dir
+}
+
 func mode(t *testing.T, path string) fs.FileMode {
 	t.Helper()
 	info, err := os.Lstat(path)
@@ -30,7 +41,7 @@ func mode(t *testing.T, path string) fs.FileMode {
 }
 
 func TestEnsureCreatesPrivateDirectoriesAndAncestors(t *testing.T) {
-	leaf := filepath.Join(t.TempDir(), "a", "b", "data")
+	leaf := filepath.Join(tempDir(t), "a", "b", "data")
 	if err := securedir.Ensure(leaf, securedir.Options{}); err != nil {
 		t.Fatalf("Ensure: %v", err)
 	}
@@ -45,7 +56,7 @@ func TestEnsureCreatesPrivateDirectoriesAndAncestors(t *testing.T) {
 }
 
 func TestEnsureTightensAnExistingDirectory(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := mkdirMode(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +72,7 @@ func TestEnsureTightensAnExistingDirectory(t *testing.T) {
 }
 
 func TestEnsureRefusesASymlink(t *testing.T) {
-	base := t.TempDir()
+	base := tempDir(t)
 	target := filepath.Join(base, "elsewhere")
 	if err := mkdirMode(target, 0o755); err != nil {
 		t.Fatal(err)
@@ -80,7 +91,7 @@ func TestEnsureRefusesASymlink(t *testing.T) {
 }
 
 func TestEnsureRefusesAFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "data")
+	path := filepath.Join(tempDir(t), "data")
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +103,7 @@ func TestEnsureRefusesAFile(t *testing.T) {
 func TestVerify(t *testing.T) {
 	newDir := func(t *testing.T) string {
 		t.Helper()
-		dir := filepath.Join(t.TempDir(), "data")
+		dir := filepath.Join(tempDir(t), "data")
 		if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 			t.Fatal(err)
 		}
@@ -110,7 +121,7 @@ func TestVerify(t *testing.T) {
 	})
 
 	t.Run("missing directory", func(t *testing.T) {
-		err := securedir.Verify(filepath.Join(t.TempDir(), "absent"), securedir.Options{})
+		err := securedir.Verify(filepath.Join(tempDir(t), "absent"), securedir.Options{})
 		if !errors.Is(err, fs.ErrNotExist) {
 			t.Fatalf("Verify(missing) = %v; want fs.ErrNotExist", err)
 		}
@@ -176,7 +187,7 @@ func TestVerify(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 		t.Fatal(err)
 	}
@@ -203,11 +214,11 @@ func TestWriteFile(t *testing.T) {
 
 // A symlink planted at the destination is replaced, not written through.
 func TestWriteFileReplacesASymlinkAtTheDestination(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 		t.Fatal(err)
 	}
-	victim := filepath.Join(t.TempDir(), "victim")
+	victim := filepath.Join(tempDir(t), "victim")
 	if err := os.WriteFile(victim, []byte("untouched"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +239,7 @@ func TestWriteFileReplacesASymlinkAtTheDestination(t *testing.T) {
 }
 
 func TestWriteFileRefusesASymlinkedDirectory(t *testing.T) {
-	base := t.TempDir()
+	base := tempDir(t)
 	real := filepath.Join(base, "real")
 	if err := securedir.Ensure(real, securedir.Options{}); err != nil {
 		t.Fatal(err)
@@ -249,7 +260,7 @@ func TestPathsMustBeAbsoluteAndSIDsValid(t *testing.T) {
 		t.Error("a relative path was accepted")
 	}
 	bad := securedir.Options{ExtraTrustedSIDs: []string{"not-a-sid"}}
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if securedir.Ensure(dir, bad) == nil {
 		t.Error("an invalid SID was accepted")
 	}
@@ -285,7 +296,7 @@ func TestTreeWalk(t *testing.T) {
 			mustWrite(t, filepath.Join(dir, "a", "b", "f"), 0o666)
 		}, securedir.ErrUnsafeAccess},
 		{"hard link to a file outside", func(t *testing.T, dir string) {
-			outside := filepath.Join(t.TempDir(), "outside")
+			outside := filepath.Join(tempDir(t), "outside")
 			mustWrite(t, outside, 0o600)
 			if err := os.Link(outside, filepath.Join(dir, "linked")); err != nil {
 				t.Skipf("hard links unavailable: %v", err)
@@ -307,7 +318,7 @@ func TestTreeWalk(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := filepath.Join(t.TempDir(), "data")
+			dir := filepath.Join(tempDir(t), "data")
 			if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 				t.Fatal(err)
 			}
@@ -353,7 +364,7 @@ func mustWrite(t *testing.T, path string, perm fs.FileMode) {
 }
 
 func TestOpenFile(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +391,7 @@ func TestOpenFile(t *testing.T) {
 	})
 
 	t.Run("refuses a symlink", func(t *testing.T) {
-		victim := filepath.Join(t.TempDir(), "victim")
+		victim := filepath.Join(tempDir(t), "victim")
 		mustWrite(t, victim, 0o600)
 		link := filepath.Join(dir, "link")
 		if err := os.Symlink(victim, link); err != nil {
@@ -416,11 +427,11 @@ func TestOpenFile(t *testing.T) {
 }
 
 func TestOpenFileRefusesAHardLinkAndDoesNotTruncateIt(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 		t.Fatal(err)
 	}
-	outside := filepath.Join(t.TempDir(), "outside")
+	outside := filepath.Join(tempDir(t), "outside")
 	if err := os.WriteFile(outside, []byte("precious"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +455,7 @@ func TestOpenFileRefusesAHardLinkAndDoesNotTruncateIt(t *testing.T) {
 }
 
 func TestOpenFileTruncatesAnOrdinaryFile(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := securedir.Ensure(dir, securedir.Options{}); err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +477,7 @@ func TestOpenFileTruncatesAnOrdinaryFile(t *testing.T) {
 // the walk itself: a loose child makes Ensure fail, and the failure must find
 // the directory already locked.
 func TestEnsureLocksDownBeforeItWalks(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
+	dir := filepath.Join(tempDir(t), "data")
 	if err := mkdirMode(dir, 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -487,7 +498,7 @@ func TestEnsureLocksDownBeforeItWalks(t *testing.T) {
 // returns the pieces.
 func ancestorFixture(t *testing.T) (base, grand, data string) {
 	t.Helper()
-	base = t.TempDir()
+	base = tempDir(t)
 	grand = filepath.Join(base, "real")
 	data = filepath.Join(grand, "mid", "data")
 	if err := securedir.Ensure(data, securedir.Options{}); err != nil {
@@ -555,5 +566,51 @@ func TestAncestorSymlinkIsRefused(t *testing.T) {
 		if err := call(); !errors.Is(err, securedir.ErrReparsePoint) {
 			t.Errorf("%s = %v; want ErrReparsePoint", name, err)
 		}
+	}
+}
+
+func TestCanonical(t *testing.T) {
+	base := tempDir(t)
+	real := filepath.Join(base, "real")
+	mustMkdir(t, filepath.Join(real, "mid"))
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := securedir.Canonical(filepath.Join(link, "mid", "not", "yet"))
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	if want := filepath.Join(real, "mid", "not", "yet"); got != want {
+		t.Errorf("Canonical = %s; want %s (link resolved, missing tail kept)", got, want)
+	}
+	if err = securedir.Ensure(got, securedir.Options{}); err != nil {
+		t.Errorf("Ensure on the canonical path: %v", err)
+	}
+	if _, err = securedir.Canonical("relative"); err == nil {
+		t.Error("a relative path was accepted")
+	}
+}
+
+// Ensure does not create anything through a link either.
+func TestEnsureDoesNotCreateThroughALinkedAncestor(t *testing.T) {
+	base := tempDir(t)
+	real := filepath.Join(base, "real")
+	mustMkdir(t, real)
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Lchown(link, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := securedir.Ensure(filepath.Join(link, "data"), securedir.Options{}); !errors.Is(err, securedir.ErrReparsePoint) {
+		t.Fatalf("Ensure = %v; want ErrReparsePoint", err)
+	}
+	if _, err := os.Lstat(filepath.Join(real, "data")); err == nil {
+		t.Error("a directory was created through the link")
 	}
 }

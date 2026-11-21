@@ -18,7 +18,7 @@ import (
 func TestSwapAfterTheCheckDoesNotRedirectTheOperation(t *testing.T) {
 	for _, op := range []string{"WriteFile", "OpenFile"} {
 		t.Run(op, func(t *testing.T) {
-			base := t.TempDir()
+			base := canonicalTemp(t)
 			data := filepath.Join(base, "data")
 			if err := Ensure(data, Options{}); err != nil {
 				t.Fatal(err)
@@ -65,7 +65,7 @@ func TestSwapAfterTheCheckDoesNotRedirectTheOperation(t *testing.T) {
 
 // A swap that happens before the call is seen by the call's own walk.
 func TestSwapBeforeTheCallIsRefused(t *testing.T) {
-	base := t.TempDir()
+	base := canonicalTemp(t)
 	data := filepath.Join(base, "data")
 	if err := Ensure(data, Options{}); err != nil {
 		t.Fatal(err)
@@ -90,4 +90,13 @@ func TestSwapBeforeTheCallIsRefused(t *testing.T) {
 	if entries, _ := os.ReadDir(attacker); len(entries) != 0 {
 		t.Errorf("a file landed in the attacker's directory: %v", entries)
 	}
+}
+
+func canonicalTemp(t *testing.T) string {
+	t.Helper()
+	dir, err := Canonical(t.TempDir())
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	return dir
 }

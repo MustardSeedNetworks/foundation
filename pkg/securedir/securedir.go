@@ -29,6 +29,7 @@ package securedir
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -159,6 +160,40 @@ func checkFiles(files []string) error {
 		}
 	}
 	return nil
+}
+
+// Canonical resolves every symbolic link, junction and mount-point alias in
+// path and returns the real absolute path, after checking that the chain it
+// names has none left. The other functions here never follow a link: a link
+// anywhere in the path they are given, at any depth, is an
+// [ErrReparsePoint]. A product therefore calls Canonical once at startup and
+// uses the result for Ensure, Verify, WriteFile and OpenFile; that is also how
+// macOS /var (a link to /private/var) is handled. Components that do not
+// exist yet are kept as written, so it can be used before Ensure creates them.
+//
+// The path must be absolute.
+func Canonical(path string) (string, error) {
+	if err := requireAbs(path); err != nil {
+		return "", err
+	}
+	existing, missing := filepath.Clean(path), ""
+	for {
+		resolved, err := filepath.EvalSymlinks(existing)
+		if err == nil {
+			existing = resolved
+			break
+		}
+		parent := filepath.Dir(existing)
+		if !errors.Is(err, fs.ErrNotExist) || parent == existing {
+			return "", fmt.Errorf("securedir: resolve %s: %w", path, err)
+		}
+		missing = filepath.Join(filepath.Base(existing), missing)
+		existing = parent
+	}
+	if err := checkNoLinks(existing); err != nil {
+		return "", err
+	}
+	return filepath.Join(existing, missing), nil
 }
 
 // Ensure makes path an existing private directory.

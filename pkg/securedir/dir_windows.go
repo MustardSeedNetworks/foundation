@@ -246,6 +246,16 @@ func openChain(path string, strict, wantWriteDAC bool, trust trustSet) (*chain, 
 	return c, nil
 }
 
+// checkNoLinks reports whether the chain down to dir contains a reparse point.
+func checkNoLinks(dir string) error {
+	c, err := openChain(dir, false, false, trustSet{})
+	if err != nil {
+		return err
+	}
+	c.close()
+	return nil
+}
+
 // sddl builds the protected descriptor: full control for SYSTEM,
 // Administrators and the extra principals, inherited by children when
 // container is set, and nothing else. The owner is left to default to the
@@ -320,35 +330,37 @@ func ensure(path string, trust trustSet) error {
 	return nil
 }
 
-// createDir creates path with the protected descriptor in the same call, and
-// any missing ancestors the same way. An existing path is not an error here;
-// ensure inspects what is there.
+// createDir creates path with the protected descriptor in the same call,
+// relative to the held handle of its parent so no link in the path is followed,
+// and any missing ancestors the same way. An existing path is not an error
+// here; ensure inspects what is there.
 func createDir(path string, trust trustSet) error {
-	name, err := windows.UTF16PtrFromString(path)
-	if err != nil {
-		return fmt.Errorf("securedir: path %q: %w", path, err)
+	parent := filepath.Dir(path)
+	held, err := openChain(parent, false, false, trust)
+	if errors.Is(err, os.ErrNotExist) && parent != path {
+		if err = createDir(parent, trust); err != nil {
+			return err
+		}
+		held, err = openChain(parent, false, false, trust)
 	}
+	if err != nil {
+		return err
+	}
+	defer held.close()
+
 	sd, err := trust.descriptor(true)
 	if err != nil {
 		return err
 	}
-	defer runtime.KeepAlive(sd)
-	attrs := &windows.SecurityAttributes{
-		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
-		SecurityDescriptor: sd,
+	handle, err := ntOpen(held.leaf.handle, filepath.Base(path), windows.READ_CONTROL, shareNoDelete|windows.FILE_SHARE_DELETE,
+		windows.FILE_CREATE, windows.FILE_DIRECTORY_FILE, sd)
+	if err == nil {
+		return windows.CloseHandle(handle)
 	}
-
-	err = windows.CreateDirectory(name, attrs)
-	if errors.Is(err, windows.ERROR_PATH_NOT_FOUND) && filepath.Dir(path) != path {
-		if err = createDir(filepath.Dir(path), trust); err != nil {
-			return err
-		}
-		err = windows.CreateDirectory(name, attrs)
+	if errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
+		return nil
 	}
-	if err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
-		return fmt.Errorf("securedir: create %s: %w", path, err)
-	}
-	return nil
+	return fmt.Errorf("securedir: create %s: %w", path, err)
 }
 
 func verify(path string, files []string, trust trustSet) error {

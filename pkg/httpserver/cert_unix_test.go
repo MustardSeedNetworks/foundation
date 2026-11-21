@@ -55,7 +55,10 @@ func TestEnsureCertificateSecuresTheCertificateDirectory(t *testing.T) {
 	}
 }
 
-func TestEnsureCertificateRefusesASymlinkedCertificateDirectory(t *testing.T) {
+// A link in the configured directory is resolved once, up front, and the
+// resolved directory is what gets secured and written; nothing is written
+// through the link afterwards.
+func TestEnsureCertificateResolvesASymlinkedCertificateDirectory(t *testing.T) {
 	base := t.TempDir()
 	real := filepath.Join(base, "real")
 	if err := os.Mkdir(real, 0o700); err != nil {
@@ -66,8 +69,11 @@ func TestEnsureCertificateRefusesASymlinkedCertificateDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := httpserver.EnsureCertificate(nil, filepath.Join(link, "server.crt"), filepath.Join(link, "server.key"), httpserver.CertOptions{})
-	if err == nil {
-		t.Fatal("EnsureCertificate wrote through a symlinked directory")
+	if err != nil {
+		t.Fatalf("EnsureCertificate: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(real, "server.crt")); statErr != nil {
+		t.Errorf("certificate is not in the resolved directory: %v", statErr)
 	}
 }
 

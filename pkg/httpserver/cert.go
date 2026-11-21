@@ -98,12 +98,21 @@ func EnsureCertificate(logger *slog.Logger, certPath, keyPath string, opts CertO
 	if optsErr != nil {
 		return tls.Certificate{}, optsErr
 	}
+	// securedir never follows a link, so the directories are resolved once here.
+	certDir, canonErr := securedir.Canonical(filepath.Dir(certPath))
+	if canonErr != nil {
+		return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", canonErr)
+	}
 	for _, dir := range uniqueDirs(certPath, keyPath) {
-		if ensureErr := securedir.Ensure(dir, dirOpts); ensureErr != nil {
+		real, canonErr := securedir.Canonical(dir)
+		if canonErr != nil {
+			return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", canonErr)
+		}
+		if ensureErr := securedir.Ensure(real, dirOpts); ensureErr != nil {
 			return tls.Certificate{}, fmt.Errorf("secure certificate directory: %w", ensureErr)
 		}
 	}
-	if writeErr := securedir.WriteFile(certPath, certPEM, dirOpts); writeErr != nil {
+	if writeErr := securedir.WriteFile(filepath.Join(certDir, filepath.Base(certPath)), certPEM, dirOpts); writeErr != nil {
 		return tls.Certificate{}, fmt.Errorf("write certificate %s: %w", certPath, writeErr)
 	}
 	if writeErr := writePrivateKey(keyPath, keyPEM); writeErr != nil {
