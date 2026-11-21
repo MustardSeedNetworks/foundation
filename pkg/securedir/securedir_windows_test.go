@@ -492,3 +492,144 @@ func TestEnsureLocksDownBeforeItWalks(t *testing.T) {
 		t.Fatalf("a refused take-over left the directory granting %v; want %v", got, want)
 	}
 }
+
+func windowsAncestorFixture(t *testing.T) (base, grand, data string) {
+	t.Helper()
+	base = t.TempDir()
+	grand = filepath.Join(base, "real")
+	data = filepath.Join(grand, "mid", "data")
+	if err := Ensure(data, userOpts(t)); err != nil {
+		t.Fatal(err)
+	}
+	return base, grand, data
+}
+
+func allEntryPoints(t *testing.T, dir string) map[string]func() error {
+	t.Helper()
+	opts := userOpts(t)
+	return map[string]func() error{
+		"Verify":    func() error { return Verify(dir, opts) },
+		"WriteFile": func() error { return WriteFile(filepath.Join(dir, "f"), []byte("x"), opts) },
+		"OpenFile": func() error {
+			file, err := OpenFile(filepath.Join(dir, "f"), os.O_RDONLY, opts)
+			if file != nil {
+				_ = file.Close()
+			}
+			return err
+		},
+	}
+}
+
+func TestAncestorTwoLevelsUpWithAnUntrustedOwnerIsRefused(t *testing.T) {
+	_, grand, data := windowsAncestorFixture(t)
+	for name, call := range allEntryPoints(t, data) {
+		if err := call(); errors.Is(err, ErrUntrustedOwner) {
+			t.Fatalf("%s refused before the ancestor was handed over: %v", name, err)
+		}
+	}
+	squat(t, grand)
+	for name, call := range allEntryPoints(t, data) {
+		if err := call(); !errors.Is(err, ErrUntrustedOwner) {
+			t.Errorf("%s = %v; want ErrUntrustedOwner", name, err)
+		}
+	}
+}
+
+func TestAncestorTwoLevelsUpWithDeleteChildIsRefused(t *testing.T) {
+	user := currentUserSID(t)
+	_, grand, data := windowsAncestorFixture(t)
+	setDACL(t, grand, "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;"+user+")(A;;0x40;;;BU)")
+	for name, call := range allEntryPoints(t, data) {
+		if err := call(); !errors.Is(err, ErrUnsafeAccess) {
+			t.Errorf("%s = %v; want ErrUnsafeAccess", name, err)
+		}
+	}
+}
+
+func TestAncestorJunctionIsRefused(t *testing.T) {
+	base, _, _ := windowsAncestorFixture(t)
+	link := filepath.Join(base, "link")
+	makeJunction(t, link, filepath.Join(base, "real"))
+	for name, call := range allEntryPoints(t, filepath.Join(link, "mid", "data")) {
+		if err := call(); !errors.Is(err, ErrReparsePoint) {
+			t.Errorf("%s = %v; want ErrReparsePoint", name, err)
+		}
+	}
+}
+
+// After the directory is checked, something tries to move it aside and put a
+// junction to an attacker's directory in its place. Either the move is refused
+// because the chain is held open, or the operation lands in the directory that
+// was checked; it never goes through the junction.
+func TestSwapAfterTheCheckDoesNotRedirectTheOperation(t *testing.T) {
+	for _, op := range []string{"WriteFile", "OpenFile"} {
+		t.Run(op, func(t *testing.T) {
+			base := t.TempDir()
+			data := filepath.Join(base, "data")
+			if err := Ensure(data, userOpts(t)); err != nil {
+				t.Fatal(err)
+			}
+			attacker := filepath.Join(base, "attacker")
+			if err := os.Mkdir(attacker, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			moved := filepath.Join(base, "moved")
+
+			landed := data
+			afterPin = func() {
+				if err := os.Rename(data, moved); err != nil {
+					t.Logf("the held directory could not be moved aside: %v", err)
+					return
+				}
+				landed = moved
+				makeJunction(t, data, attacker)
+			}
+			t.Cleanup(func() { afterPin = nil })
+
+			var err error
+			switch op {
+			case "WriteFile":
+				err = WriteFile(filepath.Join(data, "f"), []byte("secret"), userOpts(t))
+			case "OpenFile":
+				var file *os.File
+				if file, err = OpenFile(filepath.Join(data, "f"), os.O_WRONLY|os.O_CREATE, userOpts(t)); err == nil {
+					_, err = file.WriteString("secret")
+					_ = file.Close()
+				}
+			}
+			if err != nil {
+				t.Fatalf("%s: %v", op, err)
+			}
+			if _, statErr := os.Stat(filepath.Join(landed, "f")); statErr != nil {
+				t.Errorf("the file is not in the directory that was checked: %v", statErr)
+			}
+			if entries, _ := os.ReadDir(attacker); len(entries) != 0 {
+				t.Errorf("the operation went through the junction: %v", entries)
+			}
+		})
+	}
+}
+
+func TestSwapBeforeTheCallIsRefused(t *testing.T) {
+	base := t.TempDir()
+	data := filepath.Join(base, "data")
+	if err := Ensure(data, userOpts(t)); err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(data, userOpts(t)); err != nil {
+		t.Fatal(err)
+	}
+	attacker := filepath.Join(base, "attacker")
+	if err := os.Mkdir(attacker, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(data, filepath.Join(base, "moved")); err != nil {
+		t.Fatal(err)
+	}
+	makeJunction(t, data, attacker)
+
+	expectErr(t, WriteFile(filepath.Join(data, "f"), []byte("x"), userOpts(t)), ErrReparsePoint)
+	if entries, _ := os.ReadDir(attacker); len(entries) != 0 {
+		t.Errorf("a file landed in the attacker's directory: %v", entries)
+	}
+}

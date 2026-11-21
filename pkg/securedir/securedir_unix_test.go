@@ -482,3 +482,78 @@ func TestEnsureLocksDownBeforeItWalks(t *testing.T) {
 		t.Errorf("directory left at %#o after a refused take-over; want 0700", got)
 	}
 }
+
+// ancestorFixture builds <base>/real/mid/data as a private directory and
+// returns the pieces.
+func ancestorFixture(t *testing.T) (base, grand, data string) {
+	t.Helper()
+	base = t.TempDir()
+	grand = filepath.Join(base, "real")
+	data = filepath.Join(grand, "mid", "data")
+	if err := securedir.Ensure(data, securedir.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	return base, grand, data
+}
+
+func allEntryPoints(t *testing.T, dir string) map[string]func() error {
+	t.Helper()
+	opts := securedir.Options{}
+	return map[string]func() error{
+		"Verify":    func() error { return securedir.Verify(dir, opts) },
+		"WriteFile": func() error { return securedir.WriteFile(filepath.Join(dir, "f"), []byte("x"), opts) },
+		"OpenFile": func() error {
+			file, err := securedir.OpenFile(filepath.Join(dir, "f"), os.O_RDONLY, opts)
+			if file != nil {
+				_ = file.Close()
+			}
+			return err
+		},
+	}
+}
+
+func TestAncestorTwoLevelsUpThatIsWritableIsRefused(t *testing.T) {
+	_, grand, data := ancestorFixture(t)
+	if err := chmod(grand, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	for name, call := range allEntryPoints(t, data) {
+		if err := call(); !errors.Is(err, securedir.ErrUnsafeAccess) {
+			t.Errorf("%s = %v; want ErrUnsafeAccess", name, err)
+		}
+	}
+}
+
+func TestAncestorWithAnUntrustedOwnerIsRefused(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("handing a directory to another user needs root")
+	}
+	_, grand, data := ancestorFixture(t)
+	if err := os.Chown(grand, 65534, 65534); err != nil {
+		t.Fatal(err)
+	}
+	for name, call := range allEntryPoints(t, data) {
+		if err := call(); !errors.Is(err, securedir.ErrUntrustedOwner) {
+			t.Errorf("%s = %v; want ErrUntrustedOwner", name, err)
+		}
+	}
+}
+
+// A symlink two levels up that an unprivileged user could have planted.
+func TestAncestorSymlinkIsRefused(t *testing.T) {
+	base, _, _ := ancestorFixture(t)
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(filepath.Join(base, "real"), link); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() == 0 {
+		if err := os.Lchown(link, 65534, 65534); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, call := range allEntryPoints(t, filepath.Join(link, "mid", "data")) {
+		if err := call(); !errors.Is(err, securedir.ErrReparsePoint) {
+			t.Errorf("%s = %v; want ErrReparsePoint", name, err)
+		}
+	}
+}

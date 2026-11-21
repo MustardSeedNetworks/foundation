@@ -129,6 +129,21 @@ func validSID(s string) bool {
 	return true
 }
 
+// afterPin, when set by a test, runs once the directory has been opened and
+// checked and before the file operation that uses it. It is how the tests
+// swap the path for a link at the worst moment and show the operation still
+// lands in the directory that was checked.
+var afterPin func()
+
+// plainName reports whether name is a single path element that can be created
+// or opened inside a directory.
+func plainName(name string) error {
+	if !filepath.IsLocal(name) || filepath.Base(name) != name {
+		return fmt.Errorf("securedir: %q is not a plain file name", name)
+	}
+	return nil
+}
+
 func requireAbs(path string) error {
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("securedir: path %q is not absolute", path)
@@ -206,8 +221,9 @@ func Verify(path string, opts Options) error {
 // target. A reader sees the old content or the new, never a partial file, and
 // the data is never readable by an untrusted principal, even briefly.
 //
-// The directory is not vetted here; call [Ensure] or [Verify] for that. The
-// path must be absolute.
+// The directory and every ancestor above it are checked the way [Verify]
+// checks them, and the write goes through the handle that was checked, never
+// back through the path. The path must be absolute.
 func WriteFile(path string, data []byte, opts Options) error {
 	trust, err := newTrustSet(opts)
 	if err != nil {
@@ -227,8 +243,9 @@ func WriteFile(path string, data []byte, opts Options) error {
 // or a protected descriptor granting the trusted set), with the descriptor
 // attached at creation. flag takes the usual os.O_* values.
 //
-// The directory must already be private; the path must be absolute and name a
-// file directly inside it.
+// The directory and its ancestors are checked as in [WriteFile], and the open
+// goes through the handle that was checked. The path must be absolute and name
+// a file directly inside the directory.
 func OpenFile(path string, flag int, opts Options) (*os.File, error) {
 	trust, err := newTrustSet(opts)
 	if err != nil {
