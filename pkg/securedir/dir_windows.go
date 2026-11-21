@@ -444,7 +444,7 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 	defer runtime.KeepAlive(sd)
 
 	handle, err := windows.CreateFile(name, access, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
-		attrs, disposition, windows.FILE_ATTRIBUTE_NORMAL|windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+		attrs, disposition, windows.FILE_ATTRIBUTE_NORMAL|windows.FILE_FLAG_OPEN_REPARSE_POINT|windows.FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if err != nil {
 		return nil, fmt.Errorf("securedir: open %s: %w", path, err)
 	}
@@ -456,6 +456,13 @@ func openFile(path string, flag int, trust trustSet) (*os.File, error) {
 	if info.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
 		_ = windows.CloseHandle(handle)
 		return nil, fmt.Errorf("%w: %s", ErrReparsePoint, path)
+	}
+	// BACKUP_SEMANTICS is what lets a directory or junction be opened at all, so
+	// it can be recognised and refused instead of failing with a bare access
+	// error; a directory is not a file either.
+	if info.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY != 0 {
+		_ = windows.CloseHandle(handle)
+		return nil, fmt.Errorf("securedir: %s is a directory", path)
 	}
 	if info.NumberOfLinks != 1 {
 		_ = windows.CloseHandle(handle)
