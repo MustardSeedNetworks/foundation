@@ -98,3 +98,28 @@ func currentUserSID(t *testing.T) string {
 	}
 	return user.User.Sid.String()
 }
+
+// The certificate directory carries securedir's protected descriptor: exactly
+// SYSTEM, Administrators and the account that created it.
+func TestEnsureCertificateSecuresTheCertificateDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	if _, err := httpserver.EnsureCertificate(nil, filepath.Join(dir, "server.crt"), filepath.Join(dir, "server.key"), httpserver.CertOptions{}); err != nil {
+		t.Fatalf("EnsureCertificate: %v", err)
+	}
+
+	descriptor, err := windows.GetNamedSecurityInfo(dir, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
+	if err != nil {
+		t.Fatalf("read directory security info: %v", err)
+	}
+	got := grantedTrustees(t, descriptor)
+	want := []string{"S-1-5-18", "S-1-5-32-544", currentUserSID(t)}
+	sort.Strings(want)
+	if len(got) != len(want) {
+		t.Fatalf("certificate directory grants %v; want exactly %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("certificate directory grants %v; want exactly %v", got, want)
+		}
+	}
+}

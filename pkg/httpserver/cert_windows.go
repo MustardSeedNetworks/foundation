@@ -8,9 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/MustardSeedNetworks/foundation/pkg/securedir"
 )
 
 // writePrivateKey writes the key readable only by the account that created it
@@ -86,4 +89,17 @@ func ownerOnlyAttributes() (*windows.SecurityAttributes, error) {
 		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
 		SecurityDescriptor: descriptor,
 	}, nil
+}
+
+// certDirOptions adds the running account to the directory's trusted set.
+// writePrivateKey already grants it the key, and a daemon run by a developer
+// rather than as a service has to be able to write into the directory it just
+// secured; as SYSTEM this is a duplicate of an entry securedir always has.
+func certDirOptions(opts securedir.Options) (securedir.Options, error) {
+	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		return securedir.Options{}, fmt.Errorf("read process token user: %w", err)
+	}
+	opts.ExtraTrustedSIDs = append(slices.Clone(opts.ExtraTrustedSIDs), user.User.Sid.String())
+	return opts, nil
 }

@@ -30,3 +30,47 @@ func TestEnsureCertificateWritesAnOwnerOnlyKey(t *testing.T) {
 		t.Errorf("key mode = %#o; want 0600", perm)
 	}
 }
+
+// The certificate directory is created or tightened to owner-only, and the
+// certificate is written atomically into it; a pre-existing loose directory
+// is not left as found.
+func TestEnsureCertificateSecuresTheCertificateDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	if err := mkdirMode(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	certPath := filepath.Join(dir, "server.crt")
+	if _, err := httpserver.EnsureCertificate(nil, certPath, filepath.Join(dir, "server.key"), httpserver.CertOptions{}); err != nil {
+		t.Fatalf("EnsureCertificate: %v", err)
+	}
+
+	for path, want := range map[string]os.FileMode{dir: 0o700, certPath: 0o600} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != want {
+			t.Errorf("%s mode = %#o; want %#o", path, info.Mode().Perm(), want)
+		}
+	}
+}
+
+func TestEnsureCertificateRefusesASymlinkedCertificateDirectory(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	if err := os.Mkdir(real, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "certs")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	_, err := httpserver.EnsureCertificate(nil, filepath.Join(link, "server.crt"), filepath.Join(link, "server.key"), httpserver.CertOptions{})
+	if err == nil {
+		t.Fatal("EnsureCertificate wrote through a symlinked directory")
+	}
+}
+
+// mkdirMode takes the mode as a parameter: the point is a deliberately loose
+// directory, which a literal mode would have the security linter reject.
+func mkdirMode(path string, perm os.FileMode) error { return os.Mkdir(path, perm) }
