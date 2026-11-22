@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.14...v0.15.0) (2026-11-22)
+
+
+### Features
+
+* **securedir:** add fail-closed private directory and file helpers ([#223](https://github.com/MustardSeedNetworks/foundation/issues/223)) ([f2f45c3](https://github.com/MustardSeedNetworks/foundation/commit/f2f45c3eb37e3353d5867cbb077850e5450215d8))
+
 ## [0.14.14](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.13...v0.14.14) (2026-11-20)
 
 
