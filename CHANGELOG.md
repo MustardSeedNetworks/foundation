@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.0...v0.15.1) (2026-11-24)
+
+
+### Miscellaneous
+
+* **deps:** update actions/setup-go action to v7.1.0 ([#228](https://github.com/MustardSeedNetworks/foundation/issues/228)) ([6ce53aa](https://github.com/MustardSeedNetworks/foundation/commit/6ce53aab59c1cab992c6101f47301870c6fead3f))
+
 ## [0.15.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.14.14...v0.15.0) (2026-11-22)
 
 
