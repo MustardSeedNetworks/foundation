@@ -25,9 +25,9 @@
   },
   "engines": {
     "node": "26.13.1",
-    "npm": "12.2.2"
+    "npm": "12.2.3"
   },
-  "packageManager": "npm@12.2.2",
+  "packageManager": "npm@12.2.3",
   "scripts": {
     "prebuild": "node scripts/clean-build.ts",
     "build": "tsc -p tsconfig.build.json",
