@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.2.6...auth-ui-v0.2.7) (2026-11-25)
+
+
+### Miscellaneous
+
+* **deps:** update npm to v12.2.3 ([#230](https://github.com/MustardSeedNetworks/foundation/issues/230)) ([caf8d8c](https://github.com/MustardSeedNetworks/foundation/commit/caf8d8cdf8bf9702171d3cd6306572d6be91452f))
+
 ## [0.2.6](https://github.com/MustardSeedNetworks/foundation/compare/auth-ui-v0.2.5...auth-ui-v0.2.6) (2026-11-17)
 
 
