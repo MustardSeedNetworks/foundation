@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.3...v0.15.4) (2026-11-26)
+
+
+### Miscellaneous
+
+* **deps:** update ossf/scorecard-action action to v2.6.0 ([#235](https://github.com/MustardSeedNetworks/foundation/issues/235)) ([13c4f56](https://github.com/MustardSeedNetworks/foundation/commit/13c4f5684d3958333ab99fb19ee2cf954ad6ee65))
+
 ## [0.15.3](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.2...v0.15.3) (2026-11-26)
 
 
