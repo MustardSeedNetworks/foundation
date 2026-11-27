@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.5...v0.15.6) (2026-11-27)
+
+
+### Bug Fixes
+
+* **httpserver:** resolve an empty or relative CertDir against the working directory ([#239](https://github.com/MustardSeedNetworks/foundation/issues/239)) ([14c6f1f](https://github.com/MustardSeedNetworks/foundation/commit/14c6f1f06e79f5d1f14efa80c0f37ae5225b2ae7)), closes [#225](https://github.com/MustardSeedNetworks/foundation/issues/225)
+
 ## [0.15.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.4...v0.15.5) (2026-11-27)
 
 
