@@ -341,15 +341,18 @@ func canonicalOnce(path string, trust trustSet) (resolved, link, rest string, er
 
 // sddl builds the protected descriptor: full control for SYSTEM,
 // Administrators and the extra principals, inherited by children when
-// container is set, and nothing else. The owner is left to default to the
-// creating principal and is checked afterwards, because only a token holding
-// Administrators as an owner group may name it explicitly.
-func (s trustSet) sddl(container bool) string {
+// container is set, and nothing else. With administratorOwner the owner is
+// named as Administrators; otherwise it defaults to the creating principal and
+// is checked afterwards.
+func (s trustSet) sddl(container, administratorOwner bool) string {
 	inherit := ""
 	if container {
 		inherit = "OICI"
 	}
 	var b strings.Builder
+	if administratorOwner {
+		b.WriteString("O:BA")
+	}
 	b.WriteString("D:P")
 	grantees := append([]string{sidSystem, sidAdministrators}, s.extras...)
 	if s.noAdmin && !container {
@@ -361,8 +364,31 @@ func (s trustSet) sddl(container bool) string {
 	return b.String()
 }
 
+// canOwnAsAdministrators reports whether the process token may name
+// Administrators as the owner of an object it creates: the group must be
+// enabled and carry SE_GROUP_OWNER, which an elevated administrator's does.
+// An elevated administrator otherwise creates objects owned by their own
+// account, which Verify refuses.
+func canOwnAsAdministrators() bool {
+	groups, err := windows.GetCurrentProcessToken().GetTokenGroups()
+	if err != nil {
+		return false
+	}
+	admins, err := windows.StringToSid(sidAdministrators)
+	if err != nil {
+		return false
+	}
+	const want = windows.SE_GROUP_ENABLED | windows.SE_GROUP_OWNER
+	for _, g := range groups.AllGroups() {
+		if g.Sid.Equals(admins) && g.Attributes&want == want {
+			return true
+		}
+	}
+	return false
+}
+
 func (s trustSet) descriptor(container bool) (*windows.SECURITY_DESCRIPTOR, error) {
-	sd, err := windows.SecurityDescriptorFromString(s.sddl(container))
+	sd, err := windows.SecurityDescriptorFromString(s.sddl(container, !s.noAdmin && canOwnAsAdministrators()))
 	if err != nil {
 		return nil, fmt.Errorf("securedir: build security descriptor: %w", err)
 	}
