@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.6...v0.16.0) (2026-11-27)
+
+
+### Features
+
+* **password:** add a test-only work factor ([#242](https://github.com/MustardSeedNetworks/foundation/issues/242)) ([4b589d0](https://github.com/MustardSeedNetworks/foundation/commit/4b589d016513b17fe704237ce97ba60bd371cf9f)), closes [#241](https://github.com/MustardSeedNetworks/foundation/issues/241)
+
 ## [0.15.6](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.5...v0.15.6) (2026-11-27)
 
 
