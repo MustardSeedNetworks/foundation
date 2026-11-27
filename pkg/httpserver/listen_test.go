@@ -155,6 +155,33 @@ func TestListenExplicitAddressDoesNotWalk(t *testing.T) {
 	}
 }
 
+// An empty or relative CertDir is the working directory's, as documented, not
+// an "is not absolute" failure from the directory hardening.
+func TestListenResolvesARelativeCertDirAgainstTheWorkingDirectory(t *testing.T) {
+	for _, tc := range []struct{ name, certDir, want string }{
+		{"empty", "", "certs"},
+		{"relative", "pki", "pki"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			work := t.TempDir()
+			t.Chdir(work)
+			ln, err := httpserver.Listen(context.Background(), httpserver.Config{
+				Addr:    "127.0.0.1:0",
+				CertDir: tc.certDir,
+			})
+			if err != nil {
+				t.Fatalf("Listen: %v", err)
+			}
+			t.Cleanup(func() { _ = ln.Close() })
+			for _, name := range []string{httpserver.DefaultCertFileName, httpserver.DefaultKeyFileName} {
+				if _, statErr := os.Stat(filepath.Join(work, tc.want, name)); statErr != nil {
+					t.Errorf("%s not generated under the working directory: %v", name, statErr)
+				}
+			}
+		})
+	}
+}
+
 // The fleet floor is TLS 1.2 and the default is 1.3. A caller that asks for
 // less is refused at start rather than quietly serving a downgrade.
 func TestListenRefusesATLSVersionBelowTheFleetFloor(t *testing.T) {

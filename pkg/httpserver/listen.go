@@ -40,7 +40,9 @@ type Config struct {
 	KeyFile  string
 
 	// CertDir holds the generated self-signed pair. Empty means the working
-	// directory's "certs".
+	// directory's "certs"; a relative path is taken relative to the working
+	// directory too. [Listen] makes it absolute before the directory is
+	// secured, so the pair lands where the operator would look for it.
 	CertDir string
 
 	// Cert describes the certificate to generate when none is configured.
@@ -119,6 +121,10 @@ func (cfg Config) certificate() (tls.Certificate, error) {
 	dir := cfg.CertDir
 	if dir == "" {
 		dir = "certs"
+	}
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("resolve certificate directory %s: %w", cfg.CertDir, err)
 	}
 	return EnsureCertificate(cfg.Logger, filepath.Join(dir, DefaultCertFileName), filepath.Join(dir, DefaultKeyFileName), cfg.Cert)
 }
