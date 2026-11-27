@@ -838,3 +838,24 @@ func TestOpenFileRefusesAFileOthersCanWriteOrOwn(t *testing.T) {
 		expectErr(t, err, ErrUntrustedOwner)
 	})
 }
+
+func TestEnsureOwnsWhatItCreatesAsAdministratorsWhenElevated(t *testing.T) {
+	if !canOwnAsAdministrators() {
+		t.Skip("the test process is not an elevated administrator")
+	}
+	leaf := filepath.Join(t.TempDir(), "a", "data")
+	if err := Ensure(leaf, userOpts(t)); err != nil {
+		t.Fatalf("Ensure: %v", err)
+	}
+	for _, dir := range []string{leaf, filepath.Dir(leaf)} {
+		if d, _ := readNamed(t, dir); d.owner != sidAdministrators {
+			t.Errorf("%s is owned by %s; want %s", dir, d.owner, sidAdministrators)
+		}
+	}
+	if err := Ensure(leaf, userOpts(t)); err != nil {
+		t.Errorf("second Ensure: %v", err)
+	}
+	if err := Verify(leaf, userOpts(t)); err != nil {
+		t.Errorf("Verify: %v", err)
+	}
+}
