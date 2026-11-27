@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.5](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.4...v0.15.5) (2026-11-27)
+
+
+### Miscellaneous
+
+* **deps:** update github/codeql-action action to v4.39.4 ([#237](https://github.com/MustardSeedNetworks/foundation/issues/237)) ([1533ff9](https://github.com/MustardSeedNetworks/foundation/commit/1533ff9d86839fd810f0cea8d5ff2ee60b4e9d31))
+
 ## [0.15.4](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.3...v0.15.4) (2026-11-26)
 
 
