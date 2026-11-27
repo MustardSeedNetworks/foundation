@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.16.0...v0.16.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **securedir:** own Windows directories as Administrators when elevated ([#244](https://github.com/MustardSeedNetworks/foundation/issues/244)) ([652485b](https://github.com/MustardSeedNetworks/foundation/commit/652485bc168d3dc6ad4474ad9840798237c822d8)), closes [#243](https://github.com/MustardSeedNetworks/foundation/issues/243)
+
 ## [0.16.0](https://github.com/MustardSeedNetworks/foundation/compare/v0.15.6...v0.16.0) (2026-11-27)
 
 
