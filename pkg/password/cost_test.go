@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -81,7 +82,7 @@ func main() { password.UseTestCost() }
 	if err := os.WriteFile(src, []byte(program), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	bin := filepath.Join(dir, "helper")
+	bin := filepath.Join(dir, "helper"+exeSuffix())
 	build := exec.CommandContext(ctx, "go", "build", "-o", bin, src)
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build helper: %v\n%s", err, out)
@@ -91,4 +92,11 @@ func main() { password.UseTestCost() }
 	if !errors.As(err, &exit) || !strings.Contains(string(out), "only available under go test") {
 		t.Fatalf("helper did not panic: err=%v\n%s", err, out)
 	}
+}
+
+func exeSuffix() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
 }
