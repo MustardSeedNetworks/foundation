@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.2](https://github.com/MustardSeedNetworks/foundation/compare/v0.16.1...v0.16.2) (2026-11-28)
+
+
+### Miscellaneous
+
+* **deps:** update amannn/action-semantic-pull-request action to v6.1.3 ([#247](https://github.com/MustardSeedNetworks/foundation/issues/247)) ([d63c427](https://github.com/MustardSeedNetworks/foundation/commit/d63c427d5fe8626eae37b3a4e420afa566d4fc60))
+
 ## [0.16.1](https://github.com/MustardSeedNetworks/foundation/compare/v0.16.0...v0.16.1) (2026-11-27)
 
 
